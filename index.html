@@ -456,22 +456,24 @@ canvas.addEventListener('wheel', (e) => {
   if (!orbit.enabled) return;
   e.preventDefault();
   orbit.radius = THREE.MathUtils.clamp(
-    orbit.radius * (1 + Math.sign(e.deltaY) * 0.08), orbit.minR, orbit.maxR);
+    orbit.radius * Math.exp(e.deltaY * 0.0015), orbit.minR, orbit.maxR);
 }, { passive: false });
 
 // Two-finger pinch (touch only; pointer events handle single-finger).
 canvas.addEventListener('touchmove', (e) => {
   if (e.touches.length !== 2 || !orbit.enabled) return;
+  if (e.cancelable) e.preventDefault();
   const d = Math.hypot(
     e.touches[0].clientX - e.touches[1].clientX,
     e.touches[0].clientY - e.touches[1].clientY
   );
+  if (d === 0) return;
   if (pointer.pinch) {
     orbit.radius = THREE.MathUtils.clamp(
       orbit.radius * (pointer.pinch / d), orbit.minR, orbit.maxR);
   }
   pointer.pinch = d;
-}, { passive: true });
+}, { passive: false });
 canvas.addEventListener('touchend', () => { pointer.pinch = 0; });
 
 /* ----------------------------------------------------------

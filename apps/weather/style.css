@@ -55,6 +55,13 @@ body {
     min-height: 100svh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+input, textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
 }
 
 button,
