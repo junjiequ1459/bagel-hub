@@ -599,7 +599,21 @@ const getUserLocation = () => {
     setLoading(true);
     DOM.cityLabel.textContent = 'Locating…';
     navigator.geolocation.getCurrentPosition(
-        (position) => fetchWeather(position.coords.latitude, position.coords.longitude, 'My Location'),
+        async (position) => {
+            const { latitude: lat, longitude: lon } = position.coords;
+            let locationName = 'My Location';
+            try {
+                // Reverse geocode to get actual city name
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+                if (res.ok) {
+                    const data = await res.json();
+                    locationName = data.address?.city || data.address?.town || data.address?.village || data.address?.county || 'My Location';
+                }
+            } catch (err) {
+                console.error('Reverse geocoding failed:', err);
+            }
+            fetchWeather(lat, lon, locationName);
+        },
         (error) => {
             console.error('Geolocation error:', error);
             DOM.cityLabel.textContent = 'Weather';
