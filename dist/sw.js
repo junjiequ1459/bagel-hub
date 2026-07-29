@@ -1,10 +1,10 @@
-const CACHE_NAME = 'bagel-054becab0635';
+const CACHE_NAME = 'bagel-67e31c38054b';
 const PRECACHE_FILES = [
   "/",
   "/index.html",
   "/apps/weather/index.html",
-  "/assets/app-weather-C2MLFOgj.css",
-  "/assets/app-weather-HueRbhme.js",
+  "/assets/app-weather-p_jmaqNB.css",
+  "/assets/app-weather-B9b4VHfo.js",
   "/assets/hub-BEnBbyiO.js",
   "/assets/modulepreload-polyfill-B5Qt9EMX.js",
   "/manifest.webmanifest",

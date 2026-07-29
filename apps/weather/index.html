@@ -11,11 +11,11 @@
     <!-- ============ MAIN VIEW ============ -->
     <div id="view-main">
 
-        <!-- Illustrated scene background -->
+        <!-- Animated current-weather background -->
         <div class="scene-wrap" aria-hidden="true">
-            <svg class="scene" viewBox="0 0 750 1100" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+            <svg class="scene" viewBox="0 0 750 760" preserveAspectRatio="xMidYMin slice" xmlns="http://www.w3.org/2000/svg">
                 <!-- sky -->
-                <rect class="sky" x="0" y="0" width="750" height="1100"/>
+                <rect class="sky" x="0" y="0" width="750" height="760"/>
                 <!-- sun / moon -->
                 <circle class="scene-sun" cx="560" cy="180" r="52"/>
                 <g class="scene-moon">
@@ -48,37 +48,25 @@
                     <line x1="690" y1="340" x2="680" y2="380"/><line x1="140" y1="420" x2="130" y2="460"/>
                     <line x1="340" y1="430" x2="330" y2="470"/><line x1="540" y1="425" x2="530" y2="465"/>
                 </g>
-                <!-- distant mountains + sea -->
-                <path class="mountains" d="M0 705 L120 645 L230 705 L320 660 L430 705 Z"/>
-                <rect class="sea-far" x="0" y="700" width="750" height="400"/>
-                <!-- sailboat -->
-                <g class="boat">
-                    <path class="sail" d="M238 640 L238 585 L206 640 Z"/>
-                    <path class="hull" d="M196 642 L282 642 L266 662 L212 662 Z"/>
+                <!-- snow -->
+                <g class="scene-snow">
+                    <circle cx="70" cy="170" r="5"/><circle cx="145" cy="255" r="3"/>
+                    <circle cx="220" cy="145" r="4"/><circle cx="300" cy="300" r="5"/>
+                    <circle cx="380" cy="190" r="3"/><circle cx="455" cy="275" r="4"/>
+                    <circle cx="535" cy="150" r="5"/><circle cx="610" cy="235" r="3"/>
+                    <circle cx="690" cy="315" r="4"/><circle cx="105" cy="360" r="3"/>
+                    <circle cx="265" cy="410" r="4"/><circle cx="470" cy="385" r="3"/>
+                    <circle cx="645" cy="430" r="5"/>
                 </g>
-                <!-- foreground rolling field -->
-                <path class="sea-near" d="M0 790 C 180 740, 330 760, 480 790 C 600 812, 690 800, 750 780 L750 1100 L0 1100 Z"/>
-                <path class="sea-near2" d="M0 900 C 200 850, 420 880, 750 845 L750 1100 L0 1100 Z"/>
-                <!-- path to house -->
-                <path class="road" d="M676 792 C 660 850, 600 940, 470 1100 L560 1100 C 660 960, 690 860, 700 795 Z"/>
-                <!-- windmill -->
-                <g class="windmill">
-                    <rect class="pole" x="672" y="580" width="10" height="215" rx="4"/>
-                    <g class="blades">
-                        <rect x="-6" y="-118" width="12" height="118" rx="6"/>
-                        <rect x="-6" y="-118" width="12" height="118" rx="6" transform="rotate(120)"/>
-                        <rect x="-6" y="-118" width="12" height="118" rx="6" transform="rotate(240)"/>
-                    </g>
-                    <circle class="hub-dot" cx="677" cy="580" r="9"/>
+                <!-- fog bands -->
+                <g class="scene-fog">
+                    <path d="M-80 310 C80 270 220 345 390 305 C540 270 650 315 830 280"/>
+                    <path d="M-90 390 C90 350 250 420 420 380 C580 345 690 400 840 360"/>
+                    <path d="M-70 475 C100 435 280 500 450 460 C610 425 710 475 830 450"/>
                 </g>
-                <!-- house -->
-                <g class="house">
-                    <path class="roof" d="M560 758 L618 722 L676 758 Z"/>
-                    <rect class="wall" x="568" y="756" width="100" height="44" rx="3"/>
-                    <rect class="door" x="640" y="774" width="16" height="26" rx="2"/>
-                    <rect class="window" x="584" y="768" width="18" height="14" rx="2"/>
-                    <ellipse class="bush" cx="556" cy="800" rx="26" ry="16"/>
-                    <ellipse class="bush" cx="688" cy="802" rx="22" ry="14"/>
+                <!-- lightning -->
+                <g class="scene-lightning">
+                    <path d="M470 205 L425 315 L472 302 L438 405 L535 270 L485 281 L520 205 Z"/>
                 </g>
             </svg>
         </div>
@@ -86,11 +74,7 @@
         <!-- top bar -->
         <header class="main-top">
             <a class="hub-chip" href="/" aria-label="Back to Bagel Hub">‹</a>
-            <button id="city-btn" class="city-btn" type="button" aria-label="Change city">
-                <span class="plus">+</span>
-                <span id="city-label">Loading…</span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-            </button>
+            <h1 class="city-name" id="city-label">Loading…</h1>
             <button id="locate-btn" class="round-btn" type="button" aria-label="Use my location">
                 <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
             </button>
@@ -224,6 +208,10 @@
             <button class="tab active" type="button" id="tab-weather">
                 <span class="tab-icon">🌤️</span>
                 <span>Weather</span>
+            </button>
+            <button class="tab" type="button" id="tab-search">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Search</span>
             </button>
             <button class="tab" type="button" id="tab-details">
                 <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="5.5"/><line x1="16" y1="2.5" x2="16" y2="5.5"/></svg>

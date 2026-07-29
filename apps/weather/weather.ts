@@ -8,7 +8,7 @@ const DOM = {
     searchBtn: document.getElementById('search-btn') as HTMLButtonElement,
     searchCancel: document.getElementById('search-cancel') as HTMLButtonElement,
     searchOverlay: $('search-overlay'),
-    cityBtn: $('city-btn'),
+    cityBtn: $('tab-search'),
     cityLabel: $('city-label'),
     locateBtn: $('locate-btn'),
     chipDay: $('chip-day'),
@@ -147,12 +147,25 @@ const sceneTheme = (code: number, isDay: boolean): string => {
     return `theme-rain-${suffix}`; // drizzle, rain, showers, storms
 };
 
-const setTheme = (code: number, isDay: boolean) => {
+const weatherSceneClass = (code: number): string => {
+    if (code >= 95) return 'weather-storm';
+    if (code === 45 || code === 48) return 'weather-fog';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'weather-snow';
+    if (code >= 51) return 'weather-rain';
+    if (code >= 2) return 'weather-cloudy';
+    return 'weather-clear';
+};
+
+const setTheme = (code: number, isDay: boolean, windSpeed: number) => {
     document.body.className = document.body.className
         .split(' ')
-        .filter((c) => c && !c.startsWith('theme-'))
-        .concat(sceneTheme(code, isDay))
+        .filter((c) => c && !c.startsWith('theme-') && !c.startsWith('weather-'))
+        .concat(sceneTheme(code, isDay), weatherSceneClass(code))
         .join(' ');
+
+    const cloudDuration = Math.max(11, Math.min(42, 42 - windSpeed * 0.55));
+    document.documentElement.style.setProperty('--cloud-duration', `${cloudDuration.toFixed(1)}s`);
+    document.documentElement.style.setProperty('--cloud-front-duration', `${(cloudDuration * 0.72).toFixed(1)}s`);
 };
 
 const compass = (deg: number): string =>
@@ -553,7 +566,11 @@ const fetchWeather = async (lat: number, lon: number, name: string) => {
         if (!res.ok) throw new Error(`Forecast request failed (${res.status})`);
         const data: ForecastResponse = await res.json();
 
-        setTheme(data.current.weather_code, data.current.is_day === 1);
+        setTheme(
+            data.current.weather_code,
+            data.current.is_day === 1,
+            data.current.wind_speed_10m
+        );
         renderHeader(data, name);
         renderCurrent(data);
         renderHourly(data);
