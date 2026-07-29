@@ -166,6 +166,8 @@ const setTheme = (code: number, isDay: boolean, windSpeed: number) => {
     const cloudDuration = Math.max(11, Math.min(42, 42 - windSpeed * 0.55));
     document.documentElement.style.setProperty('--cloud-duration', `${cloudDuration.toFixed(1)}s`);
     document.documentElement.style.setProperty('--cloud-front-duration', `${(cloudDuration * 0.72).toFixed(1)}s`);
+    const windmillDuration = Math.max(1.5, 20 - windSpeed * 0.6);
+    document.documentElement.style.setProperty('--wind-speed', `${windmillDuration.toFixed(1)}s`);
 };
 
 const compass = (deg: number): string =>
@@ -294,7 +296,7 @@ const renderHourly = (data: ForecastResponse) => {
     const { hourly } = data;
     const start = nowHourIndex(data);
     const count = Math.min(24, hourly.time.length - start);
-    const COL = 72;
+    const COL = 96;
 
     const temps: number[] = [];
     const cols = document.createElement('div');
@@ -337,12 +339,19 @@ const renderHourly = (data: ForecastResponse) => {
     DOM.hourlyScroll.innerHTML = '';
     const band = document.createElement('div');
     band.className = 'band';
-    const chart = buildCurve(temps, COL, 64, 12, '#3d8bf2', 0);
-    chart.style.position = 'absolute';
-    chart.style.top = '34px';
-    band.appendChild(chart);
+    
     band.appendChild(cols);
     DOM.hourlyScroll.appendChild(band);
+
+    const firstCol = cols.children[0] as HTMLElement;
+    const gapEl = firstCol.children[1] as HTMLElement;
+    const gapTop = gapEl.offsetTop;
+
+    const chart = buildCurve(temps, COL, 64, 12, '#3d8bf2', 0);
+    chart.style.position = 'absolute';
+    chart.style.top = `${gapTop}px`;
+    
+    band.insertBefore(chart, cols);
     DOM.hourlyScroll.scrollLeft = 0;
 };
 
@@ -351,7 +360,7 @@ const renderHourly = (data: ForecastResponse) => {
 const renderDaily = (data: ForecastResponse) => {
     const { daily } = data;
     const n = daily.time.length;
-    const COL = 88;
+    const COL = 108;
 
     const cols = document.createElement('div');
     cols.className = 'cols';
@@ -406,16 +415,23 @@ const renderDaily = (data: ForecastResponse) => {
     const band = document.createElement('div');
     band.className = 'band';
 
-    // header rows above the charts occupy ~118px; hi label ~24px
+    band.appendChild(cols);
+    DOM.dailyScroll.appendChild(band);
+
+    const firstCol = cols.children[0] as HTMLElement;
+    const gapEl = firstCol.children[5] as HTMLElement;
+    const gapTop = gapEl.offsetTop;
+
     const hiChart = buildCurve(daily.temperature_2m_max, COL, 52, 10, '#ff9500', -1);
     hiChart.style.position = 'absolute';
-    hiChart.style.top = '142px';
+    hiChart.style.top = `${gapTop}px`;
+    
     const loChart = buildCurve(daily.temperature_2m_min, COL, 52, 10, '#3d8bf2', -1);
     loChart.style.position = 'absolute';
-    loChart.style.top = '194px';
+    loChart.style.top = `${gapTop + 52}px`;
 
-    band.append(hiChart, loChart, cols);
-    DOM.dailyScroll.appendChild(band);
+    band.insertBefore(hiChart, cols);
+    band.insertBefore(loChart, cols);
     DOM.dailyScroll.scrollLeft = 0;
 };
 
@@ -604,6 +620,7 @@ const searchCity = async (query: string) => {
             const loc = data.results[0];
             const displayName = loc.admin1 ? `${loc.name}, ${loc.admin1}` : loc.name;
             await fetchWeather(loc.latitude, loc.longitude, displayName);
+            showMain();
         } else {
             DOM.msgText.textContent = `No results for “${trimmed}” — try a different search`;
             setLoading(false);
@@ -615,8 +632,11 @@ const searchCity = async (query: string) => {
     }
 };
 
-const getUserLocation = () => {
-    if (!navigator.geolocation) return;
+const getUserLocation = (fallbackToNewYork = false) => {
+    if (!navigator.geolocation) {
+        if (fallbackToNewYork) searchCity('New York');
+        return;
+    }
     setLoading(true);
     DOM.cityLabel.textContent = 'Locating…';
     navigator.geolocation.getCurrentPosition(
@@ -633,14 +653,20 @@ const getUserLocation = () => {
             } catch (err) {
                 console.error('Reverse geocoding failed:', err);
             }
-            fetchWeather(lat, lon, locationName);
+            await fetchWeather(lat, lon, locationName);
+            showMain();
         },
         (error) => {
             console.error('Geolocation error:', error);
-            DOM.cityLabel.textContent = 'Weather';
-            DOM.msgText.textContent = 'Location unavailable — allow access or search for a city';
-            setLoading(false);
-        }
+            if (fallbackToNewYork) {
+                searchCity('New York');
+            } else {
+                DOM.cityLabel.textContent = 'Weather';
+                DOM.msgText.textContent = 'Location unavailable — allow access or search for a city';
+                setLoading(false);
+            }
+        },
+        fallbackToNewYork ? { timeout: 5000 } : undefined
     );
 };
 
@@ -663,7 +689,15 @@ DOM.cityInput.addEventListener('keydown', (e) => {
         toggleSearch(false);
     }
 });
-DOM.locateBtn.addEventListener('click', getUserLocation);
+document.addEventListener('click', (e) => {
+    if (!DOM.searchOverlay.hidden) {
+        const target = e.target as Node;
+        if (!DOM.searchOverlay.contains(target) && !DOM.cityBtn.contains(target)) {
+            toggleSearch(false);
+        }
+    }
+});
+DOM.locateBtn.addEventListener('click', () => getUserLocation(false));
 
 DOM.currentCard.addEventListener('click', showDetail);
 DOM.currentCard.addEventListener('keydown', (e) => {
@@ -673,4 +707,4 @@ DOM.tabDetails.addEventListener('click', showDetail);
 DOM.tabWeather.addEventListener('click', showMain);
 DOM.backBtn.addEventListener('click', showMain);
 
-searchCity('Tokyo');
+getUserLocation(true);

@@ -141,6 +141,11 @@ export default defineConfig({
       input: {
         hub: resolve(import.meta.dirname, 'index.html'),
         ...appEntries
+      },
+      output: {
+        manualChunks: {
+          vendor: ['three', 'animejs']
+        }
       }
     }
   }

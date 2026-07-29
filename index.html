@@ -162,7 +162,7 @@ const D = (ms) => REDUCED ? Math.min(ms, 200) : ms; // duration helper
 ---------------------------------------------------------- */
 const canvas   = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setClearColor(0x000000, 1);
 
 const scene = new THREE.Scene();
@@ -217,7 +217,7 @@ const bagel = new THREE.Group();
 
 // Inner ghost shell: a slightly shrunken solid torus so the far-side
 // wireframe dims behind it → instant sense of volume.
-bagel.add(new THREE.Mesh(new THREE.TorusGeometry(TORUS.R, TORUS.r * 0.97, 32, 96), MAT.ghost));
+bagel.add(new THREE.Mesh(new THREE.TorusGeometry(TORUS.R, TORUS.r * 0.97, TORUS.radialSegments, TORUS.tubularSegments), MAT.ghost));
 
 // The visible wireframe skin.
 bagel.add(new THREE.Mesh(new THREE.TorusGeometry(
@@ -586,8 +586,10 @@ window.addEventListener('resize', resize);
 new ResizeObserver(resize).observe(canvas);
 resize();
 
+let animationFrameId = null;
 function update() {
-  requestAnimationFrame(update);
+  if (document.hidden) return; // pause when tab is hidden
+  animationFrameId = requestAnimationFrame(update);
   const dt = clock.getDelta();
 
   // Idle drift: the station never fully stops.
@@ -675,6 +677,16 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     });
   });
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    clock.getDelta(); // reset clock delta to avoid jumping
+    update();
+  } else if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+});
 
 </script>
 </body>
