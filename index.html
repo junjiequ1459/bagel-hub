@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>BAGEL://HUB</title>
+<meta name="description" content="A spatial hub for a growing collection of personal apps.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+<style>
+  :root {
+    --ink-000: #000000;   /* void */
+    --ink-100: #0a0a0b;   /* panel */
+    --ink-300: #2b2d31;   /* grid lines */
+    --ink-500: #6b7078;   /* secondary text */
+    --ink-700: #b9bec6;   /* primary text */
+    --glow:    #f2f5f7;   /* neon white */
+    --hairline: rgba(242, 245, 247, 0.14);
+    --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+    --label-scale: 1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--ink-000);
+    color: var(--ink-700);
+    font-family: var(--mono);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none; /* we handle all gestures ourselves */
+    cursor: grab;
+  }
+  #scene.dragging { cursor: grabbing; }
+  #scene.hovering { cursor: pointer; }
+
+  /* Screen-projected labels that follow each seed — the "this is a
+     button" affordance. Positioned every frame from world space. */
+  .seed-label {
+    position: fixed; z-index: 4; pointer-events: none;
+    font-size: calc(9px * var(--label-scale));
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-700);
+    text-shadow: 0 0 8px rgba(242,245,247,0.35);
+    padding-left: calc(10px * var(--label-scale));
+    border-left: 1px solid var(--hairline);
+    white-space: nowrap;
+    transform: translate(calc(12px * var(--label-scale)), -50%);
+    opacity: 0;
+    visibility: hidden;
+    transition: color .15s, opacity .15s;
+  }
+  .seed-label .cta { color: var(--ink-500); display: none; }
+  .seed-label.hot {
+    color: var(--glow);
+    border-left-color: var(--glow);
+    opacity: 1;
+    visibility: visible;
+  }
+  .seed-label.hot .cta { display: inline; }
+
+  /* ---------- HUD chrome ---------- */
+  .hud {
+    position: fixed;
+    z-index: 5;
+    pointer-events: none;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  #hud-title { top: 20px; left: 24px; }
+  #hud-title .sys { color: var(--glow); text-shadow: 0 0 12px rgba(242,245,247,.55); }
+  #hud-title .path { color: var(--ink-500); }
+  #hud-title .sub { margin-top: 6px; font-size: 9px; color: var(--ink-500); letter-spacing: 0.22em; }
+
+  #hud-status { top: 20px; right: 24px; text-align: right; color: var(--ink-500); }
+  #hud-status .val { color: var(--glow); }
+  #hud-status .blink {
+    display: inline-block; width: 7px; height: 7px; margin-left: 8px;
+    background: var(--glow); border-radius: 50%;
+    box-shadow: 0 0 8px var(--glow);
+    animation: blink 1.6s steps(2, start) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.15; } }
+
+  #hud-hint {
+    bottom: 22px; left: 50%; transform: translateX(-50%);
+    color: var(--ink-500); font-size: 9px; letter-spacing: 0.3em;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    #hud-hint { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #hud-status .blink { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="hud" id="hud-title">
+  <div><span class="sys">BAGEL</span><span class="path">://HUB</span></div>
+  <div class="sub">application index</div>
+</div>
+
+<div class="hud" id="hud-status">
+  <div>apps loaded <span class="val" id="seed-count">00</span><span class="blink"></span></div>
+  <div style="margin-top:6px">status <span class="val">ONLINE</span></div>
+</div>
+
+<div class="hud" id="hud-hint">drag to orbit &nbsp;&middot;&nbsp; scroll / pinch to zoom &nbsp;&middot;&nbsp; tap a seed to launch</div>
+
+<script type="module">
+import * as THREE from 'three';
+import anime from 'animejs';
+import { apps as APPS } from './src/apps.ts';
+/* =====================================================================
+   BAGEL://HUB — architecture map
+   ---------------------------------------------------------------------
+   1. APPS ............ your data. Edit this array and nothing else.
+   2. SCENE ........... renderer, lights, grayscale material kit
+   3. BAGEL ........... wireframe torus + inner ghost shell + radar floor
+   4. SEEDS ........... plantSeeds(apps) — procedural surface placement
+   5. CONTROLS ........ hand-rolled orbit (mouse drag, touch, pinch, wheel)
+   6. RAYCAST ......... hover glow + click detection (drag-safe)
+   7. LAUNCH .......... anime.js camera fly-in -> app page navigation
+   ===================================================================== */
+
+/* ----------------------------------------------------------
+   1. APPS — each entry becomes one glowing seed on the torus.
+   Replace `url` with the route for each app.
+---------------------------------------------------------- */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const D = (ms) => REDUCED ? Math.min(ms, 200) : ms; // duration helper
+
+/* ----------------------------------------------------------
+   2. SCENE — the grayscale kit.
+   The whole look is four tricks:
+     a) pure-black clear color, with no scene fog obscuring the bagel;
+     b) everything is wireframe or additive — no diffuse color,
+        only line-light against black;
+     c) one near-white point light at camera + one dim fill, so
+        the few solid surfaces read as gunmetal, never colored;
+     d) glow is faked with additive sprite halos (cheap, no
+        postprocessing pass needed for a starter).
+---------------------------------------------------------- */
+const canvas   = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 1);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+const keyLight  = new THREE.PointLight(0xf2f5f7, 1.15, 60); // rides with the camera
+const fillLight = new THREE.PointLight(0x9aa0a8, 0.25, 60);
+fillLight.position.set(-8, -6, -8);
+scene.add(keyLight, fillLight, new THREE.AmbientLight(0x1a1c1f));
+
+/* Shared grayscale materials */
+const MAT = {
+  wire: new THREE.MeshBasicMaterial({
+    color: 0xd8dde3, wireframe: true, transparent: true, opacity: 0.30,
+  }),
+  ghost: new THREE.MeshStandardMaterial({
+    color: 0x14161a, roughness: 0.35, metalness: 0.85,
+    transparent: true, opacity: 0.92,
+  }),
+  seedCore: () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+  ring: new THREE.LineBasicMaterial({ color: 0x3a3e44, transparent: true, opacity: 0.5 }),
+};
+
+/* Radial-gradient sprite texture = the "glow" */
+function makeGlowTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0.0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.25, 'rgba(235,240,245,0.55)');
+  grad.addColorStop(0.6, 'rgba(200,208,216,0.12)');
+  grad.addColorStop(1.0, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeGlowTexture();
+
+/* ----------------------------------------------------------
+   3. THE BAGEL + radar dressing
+---------------------------------------------------------- */
+const TORUS = {
+  R: 5,
+  r: 2,
+  radialSegments: 24,
+  tubularSegments: 72,
+}; // geometry and app tiles share this exact grid
+
+const bagel = new THREE.Group();
+
+// Inner ghost shell: a slightly shrunken solid torus so the far-side
+// wireframe dims behind it → instant sense of volume.
+bagel.add(new THREE.Mesh(new THREE.TorusGeometry(TORUS.R, TORUS.r * 0.97, 32, 96), MAT.ghost));
+
+// The visible wireframe skin.
+bagel.add(new THREE.Mesh(new THREE.TorusGeometry(
+  TORUS.R,
+  TORUS.r,
+  TORUS.radialSegments,
+  TORUS.tubularSegments
+), MAT.wire));
+
+scene.add(bagel);
+
+// Radar and Dust removed per user request
+const radar = { rotation: { z: 0 } }; // dummy object to prevent errors in idle drift update
+
+/* ----------------------------------------------------------
+   4. SEEDS — procedural placement on the torus surface.
+
+   Parametric torus:
+     u ∈ [0, 2π) → angle around the big ring
+     v ∈ [0, 2π) → angle around the tube
+     P(u,v) = ((R + r·cos v)·cos u, r·sin v, (R + r·cos v)·sin u)
+   Outward normal at P is simply (cos v·cos u, sin v, cos v·sin u)
+   — we use it to lift the seed off the skin AND to place the
+   camera on the fly-in. Poisson-ish rejection sampling keeps
+   seeds from clumping.
+---------------------------------------------------------- */
+const seeds = [];          // meshes the raycaster tests
+const raycastTargets = [];
+let renderedLabelScale = 1;
+
+/* Parametric torus, matching THREE.TorusGeometry's own convention:
+     u = angle around the big ring, v = angle around the tube
+     P(u,v) = ((R + r·cos v)·cos u, (R + r·cos v)·sin u, r·sin v)
+     N(u,v) = (cos v·cos u, cos v·sin u, sin v)
+   Deriving the tile from these equations instead of reaching into the
+   wireframe's vertex buffer is what keeps the patch glued to the skin —
+   buffer index arithmetic silently grabs the wrong corners the moment
+   the segment counts change. */
+function torusPoint(u, v, lift = 0) {
+  const cu = Math.cos(u), su = Math.sin(u);
+  const cv = Math.cos(v), sv = Math.sin(v);
+  const rr = TORUS.r + lift;
+  return new THREE.Vector3(
+    (TORUS.R + rr * cv) * cu,
+    (TORUS.R + rr * cv) * su,
+    rr * sv
+  );
+}
+function torusNormal(u, v) {
+  const cv = Math.cos(v);
+  return new THREE.Vector3(cv * Math.cos(u), cv * Math.sin(u), Math.sin(v));
+}
+
+/* Each app occupies one real square cell from the torus grid. That cell is
+   exactly the same two triangles used by THREE.TorusGeometry, with one UV
+   square stretched across both so the logo reads as a single mark. */
+function createTileGeometry(uCell, vCell) {
+  const du = (Math.PI * 2) / TORUS.tubularSegments;
+  const dv = (Math.PI * 2) / TORUS.radialSegments;
+  const u0 = uCell * du;
+  const u1 = (uCell + 1) * du;
+  const v0 = vCell * dv;
+  const v1 = (vCell + 1) * dv;
+  const LIFT = 0.03;
+
+  const corners = [
+    torusPoint(u0, v1, LIFT), // 0 top-left
+    torusPoint(u1, v1, LIFT), // 1 top-right
+    torusPoint(u0, v0, LIFT), // 2 bottom-left
+    torusPoint(u1, v0, LIFT), // 3 bottom-right
+  ];
+
+  const tileGeo = new THREE.BufferGeometry();
+  const vertices = new Float32Array(corners.flatMap(c => [c.x, c.y, c.z]));
+  const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+
+  tileGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  tileGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  tileGeo.setIndex([0, 2, 1, 2, 3, 1]);
+  tileGeo.computeVertexNormals();
+  tileGeo.userData.corners = corners;
+  return tileGeo;
+}
+
+function makeIconTexture(iconStr) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+
+  // One panel with its shared triangle edge still visible underneath the logo.
+  g.fillStyle = 'rgba(8, 9, 11, 0.94)';
+  g.fillRect(4, 4, 248, 248);
+  g.strokeStyle = 'rgba(242, 245, 247, 0.55)';
+  g.lineWidth = 7;
+  g.strokeRect(4, 4, 248, 248);
+  g.strokeStyle = 'rgba(242, 245, 247, 0.20)';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(4, 252);
+  g.lineTo(252, 4);
+  g.stroke();
+
+  g.fillStyle = 'white';
+  g.font = '150px sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(242, 245, 247, 0.6)';
+  g.shadowBlur = 24;
+  g.fillText(iconStr || '?', 128, 140);
+  
+  return new THREE.CanvasTexture(c);
+}
+
+function plantSeeds(apps) {
+  apps.forEach((app, index) => {
+    // Choose actual torus grid cells. Apps spread around the ring and alternate
+    // between the three rows nearest the outward-facing center line.
+    const uCell = Math.floor(
+      ((index + 0.5) / apps.length) * TORUS.tubularSegments
+    ) % TORUS.tubularSegments;
+    const outerBands = [TORUS.radialSegments - 1, 0, 1];
+    const vCell = apps.length === 1 ? 0 : outerBands[index % outerBands.length];
+    const du = (Math.PI * 2) / TORUS.tubularSegments;
+    const dv = (Math.PI * 2) / TORUS.radialSegments;
+    const u = (uCell + 0.5) * du;
+    const v = (vCell + 0.5) * dv;
+
+    const tileGeo = createTileGeometry(uCell, vCell);
+
+    const iconMat = new THREE.MeshBasicMaterial({
+      map: makeIconTexture(app.icon),
+      color: new THREE.Color(0x999999),
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+
+    const tileMesh = new THREE.Mesh(tileGeo, iconMat);
+    // Both the ghost shell and the tile are transparent; without an explicit
+    // order the shell can paint over the icon it's supposed to sit behind.
+    tileMesh.renderOrder = 10;
+
+    const normal = torusNormal(u, v);
+    const center = torusPoint(u, v, 0.03);
+
+    tileMesh.userData = { app, normal, center, isSeed: true, tileMesh: tileMesh };
+
+    const hitbox = new THREE.Mesh(
+      new THREE.SphereGeometry(0.48, 8, 8),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    hitbox.position.copy(center);
+    hitbox.userData = tileMesh.userData;
+
+    const label = document.createElement('div');
+    label.className = 'seed-label';
+    label.innerHTML = `${app.name}<span class="cta"> &nbsp;&middot;&nbsp; launch</span>`;
+    document.body.appendChild(label);
+    tileMesh.userData.label = label;
+
+    bagel.add(tileMesh);
+    bagel.add(hitbox);
+    seeds.push(tileMesh);
+    raycastTargets.push(tileMesh, hitbox);
+  });
+
+  document.getElementById('seed-count').textContent =
+    String(apps.length).padStart(2, '0');
+}
+plantSeeds(APPS);
+
+/* A tile's mesh sits at the group origin — its offset lives in the vertex
+   data — so getWorldPosition() would report the bagel's centre. Everything
+   that needs a seed's actual location goes through these two. */
+function seedWorldPosition(seed, out = new THREE.Vector3()) {
+  return out.copy(seed.userData.center).applyMatrix4(bagel.matrixWorld);
+}
+function seedWorldNormal(seed, out = new THREE.Vector3()) {
+  return out.copy(seed.userData.normal)
+            .applyQuaternion(bagel.getWorldQuaternion(new THREE.Quaternion()))
+            .normalize();
+}
+
+/* ----------------------------------------------------------
+   5. CONTROLS — minimal orbit rig (no OrbitControls import).
+   State lives in spherical coords around the origin; damping
+   gives it the heavy "station turning" feel.
+---------------------------------------------------------- */
+const orbit = {
+  theta: Math.PI * 0.25, phi: Math.PI * 0.42, radius: 16,
+  vTheta: 0, vPhi: 0,
+  minR: 9, maxR: 28,
+  enabled: true,
+  target: new THREE.Vector3(0, 0, 0),
+};
+
+function applyOrbit() {
+  const sinPhi = Math.sin(orbit.phi);
+  camera.position.set(
+    orbit.radius * sinPhi * Math.cos(orbit.theta),
+    orbit.radius * Math.cos(orbit.phi),
+    orbit.radius * sinPhi * Math.sin(orbit.theta)
+  ).add(orbit.target);
+  camera.lookAt(orbit.target);
+}
+
+const pointer = { down: false, x: 0, y: 0, moved: 0, pinch: 0 };
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (!orbit.enabled) return;
+  pointer.down = true; pointer.moved = 0;
+  pointer.x = e.clientX; pointer.y = e.clientY;
+  canvas.classList.add('dragging');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  updateHover(e.clientX, e.clientY);
+  if (!pointer.down || !orbit.enabled) return;
+  const dx = e.clientX - pointer.x, dy = e.clientY - pointer.y;
+  pointer.moved += Math.abs(dx) + Math.abs(dy);
+  pointer.x = e.clientX; pointer.y = e.clientY;
+  orbit.vTheta = dx * 0.005;
+  orbit.vPhi   = dy * 0.005;
+  orbit.theta += orbit.vTheta;
+  orbit.phi = THREE.MathUtils.clamp(orbit.phi - orbit.vPhi, 0.15, Math.PI - 0.15);
+});
+canvas.addEventListener('pointerup', (e) => {
+  canvas.classList.remove('dragging');
+  if (pointer.down && pointer.moved < 6 && orbit.enabled) {
+    handleTap(e.clientX, e.clientY); // a click, not the end of a drag
+  }
+  pointer.down = false;
+});
+canvas.addEventListener('wheel', (e) => {
+  if (!orbit.enabled) return;
+  e.preventDefault();
+  orbit.radius = THREE.MathUtils.clamp(
+    orbit.radius * (1 + Math.sign(e.deltaY) * 0.08), orbit.minR, orbit.maxR);
+}, { passive: false });
+
+// Two-finger pinch (touch only; pointer events handle single-finger).
+canvas.addEventListener('touchmove', (e) => {
+  if (e.touches.length !== 2 || !orbit.enabled) return;
+  const d = Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+  if (pointer.pinch) {
+    orbit.radius = THREE.MathUtils.clamp(
+      orbit.radius * (pointer.pinch / d), orbit.minR, orbit.maxR);
+  }
+  pointer.pinch = d;
+}, { passive: true });
+canvas.addEventListener('touchend', () => { pointer.pinch = 0; });
+
+/* ----------------------------------------------------------
+   6. RAYCAST — hover + tap on seeds
+---------------------------------------------------------- */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let hovered = null;
+
+function pick(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  ndc.set(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(raycastTargets, false);
+
+  // The hitboxes are spheres straddling the skin, so a ray that has already
+  // passed through the bagel would otherwise "click" a seed on the far side.
+  // Keep only seeds actually turned toward the camera.
+  const camDir = new THREE.Vector3();
+  const wp = new THREE.Vector3();
+  for (const h of hits) {
+    const seed = h.object.userData.tileMesh;
+    if (!seed) continue;
+    camDir.copy(camera.position).sub(seedWorldPosition(seed, wp)).normalize();
+    if (seedWorldNormal(seed).dot(camDir) > 0.05) return h.object;
+  }
+  return null;
+}
+
+function updateHover(x, y) {
+  if (!orbit.enabled) return;
+  const hit = pick(x, y);
+  if (hit !== hovered) {
+    if (hovered) {
+      hovered.userData.label.classList.remove('hot');
+      anime.remove(hovered.userData.tileMesh.material.color);
+      anime({ targets: hovered.userData.tileMesh.material.color, r: 0.6, g: 0.6, b: 0.6,
+              duration: D(250), easing: 'easeOutQuad' });
+    }
+    hovered = hit;
+    canvas.classList.toggle('hovering', !!hit);
+    if (hit) {
+      hit.userData.label.classList.add('hot');
+      anime.remove(hit.userData.tileMesh.material.color);
+      anime({ targets: hit.userData.tileMesh.material.color, r: 1.0, g: 1.0, b: 1.0,
+              duration: D(250), easing: 'easeOutQuad' });
+    }
+  }
+}
+
+function handleTap(x, y) {
+  const hit = pick(x, y);
+  if (hit) launchSeed(hit);
+}
+
+/* ----------------------------------------------------------
+   7. APP PAGE LAUNCH
+   anime.js can't tween a camera directly in a useful way, so we
+   tween a plain "rig" object {px..tz} and copy it onto the camera
+   every frame in `update`. The camera flies into the selected cell,
+   then normal browser navigation hands the whole page to that app.
+---------------------------------------------------------- */
+const rig = {
+  active: false,
+  px: 0, py: 0, pz: 0,   // camera position
+  tx: 0, ty: 0, tz: 0,   // lookAt target
+};
+
+function launchSeed(seed) {
+  if (rig.active) return;
+  orbit.enabled = false;
+
+  // Seed's world position + world-space normal (bagel may have rotated).
+  const seedPos = seedWorldPosition(seed);
+  const worldNormal = seedWorldNormal(seed);
+  const camGoal = seedPos.clone().add(worldNormal.multiplyScalar(4.2));
+
+  // Seed the rig with the camera's CURRENT pose so there's no snap.
+  rig.px = camera.position.x; rig.py = camera.position.y; rig.pz = camera.position.z;
+  rig.tx = orbit.target.x;    rig.ty = orbit.target.y;    rig.tz = orbit.target.z;
+  rig.active = true;
+
+  anime({
+    targets: rig,
+    px: camGoal.x, py: camGoal.y, pz: camGoal.z,
+    tx: seedPos.x, ty: seedPos.y, tz: seedPos.z,
+    duration: D(850),
+    easing: 'easeInOutCubic',
+    complete: () => window.location.assign(seed.userData.app.url),
+  });
+}
+
+/* ----------------------------------------------------------
+   Render loop + resize
+---------------------------------------------------------- */
+const clock = new THREE.Clock();
+
+function resize() {
+  // Measure the canvas itself — never the window. In an embedded or
+  // framed viewer the canvas may not start at (0,0) or span the window,
+  // and sizing from innerWidth is exactly what shoves the render
+  // off-center and breaks click coordinates.
+  const rect = canvas.getBoundingClientRect();
+  renderer.setSize(rect.width, rect.height, false);
+  camera.aspect = rect.width / rect.height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+new ResizeObserver(resize).observe(canvas);
+resize();
+
+function update() {
+  requestAnimationFrame(update);
+  const dt = clock.getDelta();
+
+  // Idle drift: the station never fully stops.
+  if (!REDUCED) {
+    bagel.rotation.y += dt * 0.04;
+    radar.rotation.z += dt * 0.05;
+  }
+
+  if (rig.active) {
+    // Zoom flight — anime.js writes the rig, we copy it here.
+    camera.position.set(rig.px, rig.py, rig.pz);
+    camera.lookAt(rig.tx, rig.ty, rig.tz);
+  } else {
+    // Momentum decay for orbit "weight".
+    if (!pointer.down) {
+      orbit.theta += orbit.vTheta;
+      orbit.phi = THREE.MathUtils.clamp(orbit.phi - orbit.vPhi, 0.15, Math.PI - 0.15);
+      orbit.vTheta *= 0.92;
+      orbit.vPhi *= 0.92;
+    }
+    applyOrbit();
+  }
+
+  // Nine pixels is the baseline at the default/far view. As the camera zooms
+  // from radius 16 toward the minimum radius, labels grow smoothly up to 1.8x.
+  const cameraDistance = camera.position.distanceTo(orbit.target);
+  const closeZoom = THREE.MathUtils.clamp(
+    (16 - cameraDistance) / (16 - orbit.minR),
+    0,
+    1
+  );
+  const labelScale = 1 + closeZoom * 0.8;
+  if (Math.abs(labelScale - renderedLabelScale) > 0.002) {
+    document.documentElement.style.setProperty('--label-scale', labelScale.toFixed(3));
+    renderedLabelScale = labelScale;
+  }
+
+  keyLight.position.copy(camera.position); // headlamp keeps the ghost shell readable
+
+  // Pin each label to its seed's screen position.
+  const rect = canvas.getBoundingClientRect();
+  const wp = new THREE.Vector3();
+  const cornerWp = new THREE.Vector3();
+  const camDir = new THREE.Vector3();
+  for (const seed of seeds) {
+    const label = seed.userData.label;
+    const isHovered = hovered?.userData.tileMesh === seed;
+    if (rig.active || !isHovered) {
+      label.style.display = 'none';
+      continue;
+    }
+
+    seedWorldPosition(seed, wp);
+
+    // Facing check: seeds around the bagel's far side get no label.
+    camDir.copy(camera.position).sub(wp).normalize();
+    const facing = seedWorldNormal(seed).dot(camDir);
+
+    wp.project(camera); // tile center in NDC
+    const behind = wp.z > 1;
+    if (behind || facing < 0.05) { label.style.display = 'none'; continue; }
+
+    // Project all four square corners and anchor the label after whichever
+    // edge is visually farthest right. This stays correct while orbiting.
+    let rightmostX = wp.x;
+    for (const corner of seed.geometry.userData.corners) {
+      cornerWp.copy(corner).applyMatrix4(bagel.matrixWorld).project(camera);
+      rightmostX = Math.max(rightmostX, cornerWp.x);
+    }
+
+    label.style.display = 'block';
+    label.style.opacity = Math.min(1, facing * 1.6).toFixed(2);
+    label.style.left = (rect.left + (rightmostX + 1) / 2 * rect.width) + 'px';
+    label.style.top  = (rect.top + (1 - wp.y) / 2 * rect.height) + 'px';
+  }
+
+  renderer.render(scene, camera);
+}
+update();
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Service worker registration failed:', error);
+    });
+  });
+}
+
+</script>
+</body>
+</html>

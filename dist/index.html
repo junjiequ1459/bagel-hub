@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>BAGEL://HUB</title>
+<meta name="description" content="A spatial hub for a growing collection of personal apps.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+<style>
+  :root {
+    --ink-000: #000000;   /* void */
+    --ink-100: #0a0a0b;   /* panel */
+    --ink-300: #2b2d31;   /* grid lines */
+    --ink-500: #6b7078;   /* secondary text */
+    --ink-700: #b9bec6;   /* primary text */
+    --glow:    #f2f5f7;   /* neon white */
+    --hairline: rgba(242, 245, 247, 0.14);
+    --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+    --label-scale: 1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--ink-000);
+    color: var(--ink-700);
+    font-family: var(--mono);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none; /* we handle all gestures ourselves */
+    cursor: grab;
+  }
+  #scene.dragging { cursor: grabbing; }
+  #scene.hovering { cursor: pointer; }
+
+  /* Screen-projected labels that follow each seed — the "this is a
+     button" affordance. Positioned every frame from world space. */
+  .seed-label {
+    position: fixed; z-index: 4; pointer-events: none;
+    font-size: calc(9px * var(--label-scale));
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-700);
+    text-shadow: 0 0 8px rgba(242,245,247,0.35);
+    padding-left: calc(10px * var(--label-scale));
+    border-left: 1px solid var(--hairline);
+    white-space: nowrap;
+    transform: translate(calc(12px * var(--label-scale)), -50%);
+    opacity: 0;
+    visibility: hidden;
+    transition: color .15s, opacity .15s;
+  }
+  .seed-label .cta { color: var(--ink-500); display: none; }
+  .seed-label.hot {
+    color: var(--glow);
+    border-left-color: var(--glow);
+    opacity: 1;
+    visibility: visible;
+  }
+  .seed-label.hot .cta { display: inline; }
+
+  /* ---------- HUD chrome ---------- */
+  .hud {
+    position: fixed;
+    z-index: 5;
+    pointer-events: none;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  #hud-title { top: 20px; left: 24px; }
+  #hud-title .sys { color: var(--glow); text-shadow: 0 0 12px rgba(242,245,247,.55); }
+  #hud-title .path { color: var(--ink-500); }
+  #hud-title .sub { margin-top: 6px; font-size: 9px; color: var(--ink-500); letter-spacing: 0.22em; }
+
+  #hud-status { top: 20px; right: 24px; text-align: right; color: var(--ink-500); }
+  #hud-status .val { color: var(--glow); }
+  #hud-status .blink {
+    display: inline-block; width: 7px; height: 7px; margin-left: 8px;
+    background: var(--glow); border-radius: 50%;
+    box-shadow: 0 0 8px var(--glow);
+    animation: blink 1.6s steps(2, start) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.15; } }
+
+  #hud-hint {
+    bottom: 22px; left: 50%; transform: translateX(-50%);
+    color: var(--ink-500); font-size: 9px; letter-spacing: 0.3em;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    #hud-hint { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #hud-status .blink { animation: none; }
+  }
+</style>
+  <script type="module" crossorigin src="/assets/hub-BEnBbyiO.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="hud" id="hud-title">
+  <div><span class="sys">BAGEL</span><span class="path">://HUB</span></div>
+  <div class="sub">application index</div>
+</div>
+
+<div class="hud" id="hud-status">
+  <div>apps loaded <span class="val" id="seed-count">00</span><span class="blink"></span></div>
+  <div style="margin-top:6px">status <span class="val">ONLINE</span></div>
+</div>
+
+<div class="hud" id="hud-hint">drag to orbit &nbsp;&middot;&nbsp; scroll / pinch to zoom &nbsp;&middot;&nbsp; tap a seed to launch</div>
+
+</body>
+</html>
