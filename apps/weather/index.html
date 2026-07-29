@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Weather</title>
+    <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+    <link rel="preconnect" href="https://geocoding-api.open-meteo.com" crossorigin>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body class="theme-cloudy-day">
@@ -18,10 +20,10 @@
                 <rect class="sky" x="0" y="0" width="1920" height="1080"/>
                 
                 <!-- sun / moon -->
-                <circle class="scene-sun" cx="1080" cy="300" r="60"/>
+                <circle class="scene-sun" cx="1080" cy="150" r="60"/>
                 <g class="scene-moon">
-                    <circle cx="1090" cy="290" r="50"/>
-                    <circle class="moon-bite" cx="1115" cy="275" r="42"/>
+                    <circle cx="1090" cy="140" r="50"/>
+                    <circle class="moon-bite" cx="1115" cy="125" r="42"/>
                 </g>
                 <g class="scene-stars">
                     <circle cx="200" cy="150" r="3"/><circle cx="500" cy="120" r="2.5"/><circle cx="800" cy="180" r="2"/>
@@ -49,50 +51,366 @@
                     <path class="hill-water" d="M0 510 Q 960 490 1920 510 L 1920 1080 L 0 1080 Z"/>
                     <path class="hill-back" d="M0 520 Q 960 480 1920 530 L 1920 1080 L 0 1080 Z"/>
                     
-                    <!-- Sailboat (bobs in CSS) -->
-                    <g class="sailboat" transform="translate(765, 505)">
-                        <!-- hull -->
-                        <path class="boat-hull" d="M0,15 L35,15 L25,25 L5,25 Z"/>
-                        <!-- back sail -->
-                        <path class="boat-sail" d="M16,13 L16,-5 L2,13 Z"/>
-                        <!-- front sail -->
-                        <path class="boat-sail" d="M20,13 L20,-10 L35,13 Z"/>
-                    </g>
-                    
-                    <!-- Mid hill (right side) -->
-                    <path class="hill-mid" d="M400 780 C 835 570, 1085 530, 1920 550 L 1920 1080 L 400 1080 Z"/>
-                    
-                    <!-- House & Windmill -->
-                    <g class="structures" transform="translate(1065, 525)">
-                        <!-- house -->
-                        <g class="house" transform="translate(15, 20)">
-                            <rect x="0" y="10" width="55" height="15" class="house-base"/>
-                            <polygon points="-5,10 27,0 60,10" class="house-roof"/>
-                            <!-- small window -->
-                            <rect x="10" y="15" width="8" height="6" class="house-win"/>
-                            <rect x="25" y="15" width="8" height="6" class="house-win"/>
-                            <rect x="40" y="15" width="8" height="6" class="house-win"/>
-                            <!-- bushes -->
-                            <circle cx="-8" cy="20" r="10" class="house-bush-back"/>
-                            <circle cx="-16" cy="22" r="6" class="house-bush-front"/>
-                            <circle cx="5" cy="24" r="5" class="house-bush-front"/>
-                            <circle cx="65" cy="23" r="7" class="house-bush-back"/>
-                        </g>
-                        <!-- windmill -->
-                        <g class="windmill" transform="translate(-10, -50)">
-                            <!-- tower -->
-                            <path d="M2,80 L6,80 L12,140 L-4,140 Z" class="windmill-tower"/>
-                            <!-- blades group (rotates via CSS) -->
-                            <g class="windmill-blades" transform="translate(4, 80)">
-                                <!-- 3 blades -->
-                                <path d="M0,-2 L0,2 L110,6 L110,-6 Z" class="windmill-blade" transform="rotate(0)"/>
-                                <path d="M0,-2 L0,2 L110,6 L110,-6 Z" class="windmill-blade" transform="rotate(120)"/>
-                                <path d="M0,-2 L0,2 L110,6 L110,-6 Z" class="windmill-blade" transform="rotate(240)"/>
-                                <circle cx="0" cy="0" r="4" class="windmill-hub"/>
+                    <!-- RURAL SCENERY -->
+                    <g id="env-rural" style="display: none;">
+                        <g class="structures" transform="translate(820, 525)">
+                            <!-- Farmhouse -->
+                            <g transform="translate(-10, -20)">
+                                <!-- Main House -->
+                                <rect class="house-base" x="0" y="10" width="60" height="40"/>
+                                <polygon class="house-roof" points="-5,10 30,-15 65,10"/>
+                                <!-- Porch -->
+                                <rect class="house-base" x="60" y="30" width="30" height="20"/>
+                                <polygon class="house-roof" points="55,30 60,20 95,20 95,30"/>
+                                <!-- Windows -->
+                                <rect class="house-win" x="10" y="20" width="12" height="12"/>
+                                <rect class="house-win" x="38" y="20" width="12" height="12"/>
+                                <rect class="house-win" x="24" y="2" width="12" height="6"/> <!-- Attic -->
+                                <!-- Porch columns -->
+                                <rect class="house-roof" x="62" y="30" width="2" height="20"/>
+                                <rect class="house-roof" x="75" y="30" width="2" height="20"/>
+                                <rect class="house-roof" x="88" y="30" width="2" height="20"/>
+                            </g>
+                            <circle cx="-30" cy="15" r="25" class="house-bush-back"/>
+                            <circle cx="-40" cy="22" r="15" class="house-bush-front"/>
+
+                            <!-- Wooden Rail Fence -->
+                            <g transform="translate(90, 15)">
+                                <path d="M 0,15 L 0,0 M 40,15 L 40,0 M 80,15 L 80,0 M 120,15 L 120,0 M 160,15 L 160,0" class="fence" stroke-width="2"/>
+                                <line x1="0" y1="5" x2="160" y2="5" class="fence" stroke-width="2"/>
+                                <line x1="0" y1="10" x2="160" y2="10" class="fence" stroke-width="2"/>
+                            </g>
+
+                            <!-- Horses -->
+                            <g transform="translate(120, 10)">
+                                <!-- Horse Grazing -->
+                                <ellipse cx="15" cy="12" rx="10" ry="6" class="house-base"/>
+                                <g style="transform-origin: 15px 12px;">
+                                    <ellipse cx="25" cy="16" rx="4" ry="3" class="house-base"/>
+                                    <polygon class="house-base" points="20,9 27,15 24,18 16,14"/>
+                                    <animateTransform attributeName="transform" type="rotate" values="0; -25; 0; 0" keyTimes="0; 0.3; 0.6; 1" dur="3s" repeatCount="indefinite"/>
+                                </g>
+                                <rect class="house-base" x="8" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="11" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="18" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="21" y="15" width="2" height="8"/>
+                            </g>
+                            <g transform="translate(170, 5)">
+                                <!-- Horse Standing -->
+                                <ellipse cx="15" cy="12" rx="10" ry="6" class="house-base"/>
+                                <g style="transform-origin: 15px 12px;">
+                                    <polygon class="house-base" points="20,10 26,2 22,-2 15,8"/>
+                                    <ellipse cx="24" cy="0" rx="3" ry="5" class="house-base"/>
+                                    <animateTransform attributeName="transform" type="rotate" values="0; 25; 0; 0" keyTimes="0; 0.4; 0.8; 1" dur="4s" repeatCount="indefinite"/>
+                                </g>
+                                <rect class="house-base" x="8" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="11" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="18" y="15" width="2" height="8"/>
+                                <rect class="house-base" x="21" y="15" width="2" height="8"/>
+                                <g style="transform-origin: 6px 10px;">
+                                    <polygon class="house-base" points="6,10 2,15 0,20 4,20 8,14"/>
+                                    <animateTransform attributeName="transform" type="rotate" values="0; 30; -10; 15; 0" keyTimes="0; 0.2; 0.5; 0.8; 1" dur="1.5s" repeatCount="indefinite"/>
+                                </g>
+                            </g>
+
+                            <!-- Barn -->
+                            <g transform="translate(260, -40)">
+                                <rect class="house-base" x="0" y="20" width="80" height="50"/>
+                                <polygon class="house-roof" points="-10,20 15,-10 65,-10 90,20"/>
+                                <polygon class="house-base" points="0,20 20,-5 60,-5 80,20"/>
+                                <rect class="house-roof" x="25" y="30" width="30" height="40"/>
+                                <polygon class="house-win" opacity="0.4" points="25,30 55,70 50,70 25,35"/>
+                                <polygon class="house-win" opacity="0.4" points="55,30 25,70 30,70 55,35"/>
+                                <rect class="house-win" x="35" y="0" width="10" height="15"/>
+                            </g>
+
+                            <!-- Silo -->
+                            <g transform="translate(350, -70)">
+                                <rect class="house-base" x="0" y="10" width="30" height="90"/>
+                                <path class="house-roof" d="M -5,10 A 20,20 0 0,1 35,10 Z"/>
+                                <rect class="house-roof" x="12" y="15" width="6" height="85" opacity="0.5"/>
+                            </g>
+                            <circle cx="390" cy="15" r="20" class="house-bush-back"/>
+                            <circle cx="410" cy="22" r="15" class="house-bush-front"/>
+
+                            <!-- Tractor -->
+                            <g transform="translate(420, 10)">
+                                <rect class="house-base" x="15" y="0" width="25" height="12"/>
+                                <rect class="house-base" x="35" y="5" width="15" height="7"/>
+                                <circle cx="10" cy="10" r="10" class="house-base"/>
+                                <circle cx="10" cy="10" r="4" class="house-roof"/>
+                                <circle cx="45" cy="14" r="6" class="house-base"/>
+                                <circle cx="45" cy="14" r="2" class="house-roof"/>
+                                <rect class="house-roof" x="15" y="-15" width="15" height="15"/>
+                                <rect class="house-win" x="17" y="-12" width="10" height="10"/>
+                                <rect class="house-roof" x="42" y="-5" width="2" height="10"/>
+                                <!-- Exhaust Smoke -->
+                                <circle cx="43" cy="-10" r="3" class="house-base" opacity="0">
+                                    <animate attributeName="cy" values="-10; -40" dur="1.5s" repeatCount="indefinite" />
+                                    <animate attributeName="opacity" values="0; 0.8; 0" dur="1.5s" repeatCount="indefinite" />
+                                    <animate attributeName="r" values="3; 10" dur="1.5s" repeatCount="indefinite" />
+                                </circle>
+                                <circle cx="43" cy="-10" r="3" class="house-base" opacity="0">
+                                    <animate attributeName="cy" values="-10; -40" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+                                    <animate attributeName="opacity" values="0; 0.8; 0" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+                                    <animate attributeName="r" values="3; 10" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+
+                            <!-- Cows -->
+                            <g transform="translate(500, 10)">
+                                <rect class="house-base" x="0" y="5" width="25" height="12" rx="4"/>
+                                <g style="transform-origin: 20px 10px;">
+                                    <rect class="house-base" x="20" y="10" width="12" height="8" rx="2"/>
+                                    <animateTransform attributeName="transform" type="rotate" values="0; -30; 0; 0" keyTimes="0; 0.3; 0.6; 1" dur="2.5s" repeatCount="indefinite"/>
+                                </g>
+                                <rect class="house-base" x="3" y="15" width="3" height="8"/>
+                                <rect class="house-base" x="8" y="15" width="3" height="8"/>
+                                <rect class="house-base" x="16" y="15" width="3" height="8"/>
+                                <rect class="house-base" x="20" y="15" width="3" height="8"/>
+                                <circle cx="8" cy="10" r="3" class="house-roof"/>
+                                <circle cx="16" cy="12" r="2.5" class="house-roof"/>
+                            </g>
+                            <g transform="translate(550, 8)">
+                                <rect class="house-base" x="0" y="5" width="25" height="12" rx="4"/>
+                                <g style="transform-origin: 0px 5px;">
+                                    <rect class="house-base" x="-10" y="0" width="12" height="8" rx="2"/>
+                                    <animateTransform attributeName="transform" type="rotate" values="0; 30; 0; 0" keyTimes="0; 0.4; 0.7; 1" dur="3s" repeatCount="indefinite"/>
+                                </g>
+                                <rect class="house-base" x="3" y="15" width="3" height="10"/>
+                                <rect class="house-base" x="8" y="15" width="3" height="10"/>
+                                <rect class="house-base" x="16" y="15" width="3" height="10"/>
+                                <rect class="house-base" x="20" y="15" width="3" height="10"/>
+                                <circle cx="12" cy="11" r="3.5" class="house-roof"/>
+                                <circle cx="20" cy="8" r="2.5" class="house-roof"/>
+                            </g>
+
+                            <!-- Fence Right -->
+                            <g transform="translate(480, 15)">
+                                <path d="M 0,15 L 0,0 M 40,15 L 40,0 M 80,15 L 80,0 M 120,15 L 120,0" class="fence" stroke-width="2"/>
+                                <line x1="0" y1="5" x2="120" y2="5" class="fence" stroke-width="2"/>
+                                <line x1="0" y1="10" x2="120" y2="10" class="fence" stroke-width="2"/>
                             </g>
                         </g>
                     </g>
                     
+                    <!-- CITY SCENERY -->
+                    <g id="env-city" style="display: none;">
+                        <g class="structures" transform="translate(820, 525)">
+                            <!-- Far left building -->
+                            <rect class="house-base" x="-60" y="-160" width="40" height="185"/>
+                            <rect class="house-roof" x="-62" y="-170" width="44" height="10"/>
+                            <!-- One World Trade Center -->
+                            <polygon points="-10,25 40,25 30,-240 0,-240" class="house-base"/>
+                            <rect class="house-roof" x="14" y="-280" width="2" height="40"/> <!-- Spire -->
+                            <polygon points="-5,-10 35,-10 25,-220 5,-220" class="glass"/>
+                            <!-- Mid-tall block behind OWTC and Empire -->
+                            <rect class="house-base" x="45" y="-150" width="45" height="175"/>
+                            <rect class="house-base" x="100" y="-180" width="50" height="205"/>
+                            <!-- Generic block front -->
+                            <rect class="house-base" x="70" y="-90" width="60" height="115"/>
+                            <!-- Empire State Building -->
+                            <rect class="house-base" x="160" y="-70" width="60" height="95"/>
+                            <rect class="house-base" x="165" y="-160" width="50" height="90"/>
+                            <rect class="house-base" x="175" y="-200" width="30" height="40"/>
+                            <rect class="house-roof" x="187" y="-230" width="6" height="30"/>
+                            <rect class="house-roof" x="189" y="-260" width="2" height="30"/>
+                            <!-- Empire windows -->
+                            <g class="house-win">
+                                <rect x="172" y="-140" width="5" height="12"/><rect x="181" y="-140" width="5" height="12"/><rect x="194" y="-140" width="5" height="12"/><rect x="203" y="-140" width="5" height="12"/>
+                                <rect x="172" y="-115" width="5" height="12"/><rect x="181" y="-115" width="5" height="12"/><rect x="194" y="-115" width="5" height="12"/><rect x="203" y="-115" width="5" height="12"/>
+                                <rect x="172" y="-90" width="5" height="12"/><rect x="181" y="-90" width="5" height="12"/><rect x="194" y="-90" width="5" height="12"/><rect x="203" y="-90" width="5" height="12"/>
+                            </g>
+                            <!-- Tall block behind Chrysler -->
+                            <rect class="house-base" x="230" y="-170" width="55" height="195"/>
+                            <!-- Chrysler Building -->
+                            <rect class="house-base" x="295" y="-130" width="40" height="155"/>
+                            <rect class="house-base" x="300" y="-170" width="30" height="40"/>
+                            <path d="M 300,-170 Q 315,-220 315,-220 Q 315,-220 330,-170 Z" class="house-roof"/>
+                            <rect class="house-roof" x="314" y="-260" width="2" height="40"/>
+                            <!-- Chrysler windows -->
+                            <g class="house-win">
+                                <rect x="302" y="-110" width="6" height="10"/><rect x="312" y="-110" width="6" height="10"/><rect x="322" y="-110" width="6" height="10"/>
+                                <rect x="302" y="-80" width="6" height="10"/><rect x="312" y="-80" width="6" height="10"/><rect x="322" y="-80" width="6" height="10"/>
+                                <rect x="302" y="-50" width="6" height="10"/><rect x="312" y="-50" width="6" height="10"/><rect x="322" y="-50" width="6" height="10"/>
+                            </g>
+                            <!-- Modern thin supertall (432 Park Ave style) -->
+                            <rect class="house-base" x="365" y="-230" width="30" height="255"/>
+                            <rect class="glass" x="371" y="-210" width="6" height="210"/>
+                            <rect class="glass" x="383" y="-210" width="6" height="210"/>
+                            <!-- Lower wider block -->
+                            <rect class="house-base" x="410" y="-110" width="60" height="135"/>
+                            <rect class="house-roof" x="410" y="-120" width="60" height="10"/>
+                            <!-- Far right block -->
+                            <rect class="house-base" x="480" y="-160" width="55" height="185"/>
+                            <rect class="house-base" x="550" y="-120" width="45" height="145"/>
+                            
+                            <!-- Random glowing windows across the filler blocks -->
+                            <rect class="house-win" x="-50" y="-120" width="6" height="10"/><rect class="house-win" x="-35" y="-120" width="6" height="10"/>
+                            <rect class="house-win" x="55" y="-130" width="6" height="10"/><rect class="house-win" x="70" y="-130" width="6" height="10"/>
+                            <rect class="house-win" x="115" y="-150" width="6" height="10"/><rect class="house-win" x="135" y="-150" width="6" height="10"/>
+                            <rect class="house-win" x="240" y="-120" width="6" height="10"/><rect class="house-win" x="270" y="-120" width="6" height="10"/>
+                            <rect class="house-win" x="420" y="-80" width="6" height="10"/><rect class="house-win" x="450" y="-80" width="6" height="10"/>
+                            <rect class="house-win" x="500" y="-100" width="6" height="10"/><rect class="house-win" x="515" y="-100" width="6" height="10"/>
+                            
+                            <!-- Small trees at base -->
+                            <circle cx="-20" cy="22" r="8" class="house-bush-front"/>
+                            <circle cx="20" cy="24" r="10" class="house-bush-front"/>
+                            <circle cx="120" cy="22" r="8" class="house-bush-front"/>
+                            <circle cx="220" cy="24" r="10" class="house-bush-front"/>
+                            <circle cx="340" cy="22" r="7" class="house-bush-front"/>
+                            <circle cx="450" cy="24" r="9" class="house-bush-front"/>
+                            <circle cx="580" cy="25" r="11" class="house-bush-front"/>
+                        </g>
+                    </g>
+                    
+                    <!-- SUBURB SCENERY -->
+                    <g id="env-suburb" style="display: none;">
+                        <g class="structures" transform="translate(820, 525)">
+                            <!-- Sidewalk / Street edge -->
+                            <rect class="house-base" x="-50" y="45" width="680" height="3" opacity="0.5"/>
+                            
+                            <!-- Streetlamp 1 -->
+                            <g transform="translate(-20, 5)">
+                                <rect class="house-base" x="0" y="0" width="2" height="40"/>
+                                <rect class="house-base" x="-8" y="-2" width="12" height="4" rx="2"/>
+                                <circle cx="-4" cy="2" r="5" class="house-win">
+                                    <animate attributeName="opacity" values="0.7; 1; 0.7" dur="4s" repeatCount="indefinite" />
+                                </circle> <!-- lamp glow -->
+                            </g>
+
+                            <!-- House 1: Craftsman -->
+                            <g transform="translate(20, -10)">
+                                <rect class="house-base" x="0" y="15" width="60" height="40"/>
+                                <polygon class="house-roof" points="-10,15 30,-5 70,15"/>
+                                <polygon class="house-roof" points="-5,30 30,15 65,30"/> <!-- Porch roof -->
+                                <rect class="house-base" x="5" y="30" width="3" height="25"/>
+                                <rect class="house-base" x="52" y="30" width="3" height="25"/>
+                                <rect class="house-win" x="12" y="35" width="10" height="15"/>
+                                <rect class="house-win" x="38" y="35" width="10" height="15"/>
+                                <rect class="house-win" x="25" y="10" width="10" height="10"/>
+                                <!-- Mailbox -->
+                                <rect class="house-base" x="70" y="45" width="2" height="10"/>
+                                <rect class="house-base" x="67" y="42" width="8" height="5" rx="2"/>
+                            </g>
+                            <circle cx="10" cy="35" r="15" class="house-bush-back"/>
+                            <circle cx="95" cy="40" r="10" class="house-bush-front"/>
+
+                            <!-- House 2: Two-Story with Garage & SUV -->
+                            <g transform="translate(130, -10)">
+                                <!-- Garage -->
+                                <rect class="house-base" x="40" y="25" width="50" height="30"/>
+                                <polygon class="house-roof" points="35,25 65,10 95,25"/>
+                                <rect class="house-roof" x="45" y="32" width="40" height="23" opacity="0.5"/>
+                                <!-- Main House -->
+                                <rect class="house-base" x="0" y="5" width="50" height="50"/>
+                                <polygon class="house-roof" points="-5,5 25,-15 55,5"/>
+                                <rect class="house-win" x="10" y="12" width="10" height="12"/>
+                                <rect class="house-win" x="30" y="12" width="10" height="12"/>
+                                <rect class="house-win" x="10" y="35" width="12" height="15"/>
+                                <!-- SUV -->
+                                <g transform="translate(50, 43)">
+                                    <rect class="house-base" x="0" y="4" width="30" height="10" rx="3"/>
+                                    <polygon class="house-base" points="4,4 10,-2 20,-2 26,4"/>
+                                    <circle cx="6" cy="12" r="3.5" class="house-base"/>
+                                    <circle cx="24" cy="12" r="3.5" class="house-base"/>
+                                    <!-- Tail light -->
+                                    <rect x="-1" y="6" width="3" height="4" fill="#ff4d4d" opacity="0.6" rx="1" />
+                                </g>
+                            </g>
+
+                            <!-- Streetlamp 2 -->
+                            <g transform="translate(240, 5)">
+                                <rect class="house-base" x="0" y="0" width="2" height="40"/>
+                                <rect class="house-base" x="-8" y="-2" width="12" height="4" rx="2"/>
+                                <circle cx="-4" cy="2" r="5" class="house-win">
+                                    <animate attributeName="opacity" values="0.7; 1; 0.7" dur="3s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+
+                            <!-- House 3: Classic Colonial -->
+                            <g transform="translate(280, -10)">
+                                <rect class="house-base" x="0" y="10" width="70" height="45"/>
+                                <polygon class="house-roof" points="-5,10 35,-10 75,10"/>
+                                <rect class="house-win" x="12" y="18" width="12" height="12"/>
+                                <rect class="house-win" x="46" y="18" width="12" height="12"/>
+                                <rect class="house-win" x="12" y="38" width="12" height="15"/>
+                                <rect class="house-win" x="46" y="38" width="12" height="15"/>
+                                <!-- Mailbox -->
+                                <rect class="house-base" x="-15" y="45" width="2" height="10"/>
+                                <rect class="house-base" x="-18" y="42" width="8" height="5" rx="2"/>
+                            </g>
+                            <circle cx="270" cy="35" r="18" class="house-bush-back"/>
+                            <circle cx="365" cy="40" r="12" class="house-bush-front"/>
+
+                            <!-- Streetlamp 3 -->
+                            <g transform="translate(390, 5)">
+                                <rect class="house-base" x="0" y="0" width="2" height="40"/>
+                                <rect class="house-base" x="-8" y="-2" width="12" height="4" rx="2"/>
+                                <circle cx="-4" cy="2" r="5" class="house-win">
+                                    <animate attributeName="opacity" values="0.8; 1; 0.8" dur="4.5s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+
+                            <!-- House 4: Cookie-Cutter -->
+                            <g transform="translate(420, -15)">
+                                <rect class="house-base" x="0" y="10" width="80" height="50"/>
+                                <polygon class="house-roof" points="-5,10 40,-15 85,10"/>
+                                <rect class="house-base" x="0" y="20" width="40" height="40"/>
+                                <polygon class="house-roof" points="-5,20 20,0 45,20"/>
+                                <rect class="house-roof" x="5" y="35" width="30" height="25" opacity="0.5"/> <!-- garage door -->
+                                <rect class="house-win" x="48" y="18" width="22" height="12"/>
+                                <rect class="house-win" x="50" y="42" width="12" height="15"/>
+                                <!-- Sedan -->
+                                <g transform="translate(5, 50)">
+                                    <rect class="house-base" x="0" y="5" width="30" height="7" rx="2"/>
+                                    <polygon class="house-base" points="4,5 12,0 20,0 26,5"/>
+                                    <circle cx="6" cy="11" r="3" class="house-base"/>
+                                    <circle cx="24" cy="11" r="3" class="house-base"/>
+                                    <!-- Tail light -->
+                                    <rect x="-1" y="6" width="3" height="3" fill="#ff4d4d" opacity="0.6" rx="1" />
+                                </g>
+                            </g>
+
+                            <circle cx="520" cy="30" r="22" class="house-bush-back"/>
+
+                            <!-- Streetlamp 4 -->
+                            <g transform="translate(550, 5)">
+                                <rect class="house-base" x="0" y="0" width="2" height="40"/>
+                                <rect class="house-base" x="-8" y="-2" width="12" height="4" rx="2"/>
+                                <circle cx="-4" cy="2" r="5" class="house-win">
+                                    <animate attributeName="opacity" values="0.7; 1; 0.7" dur="5s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+
+                            <!-- Driving Car (Right-bound) -->
+                            <g>
+                                <rect class="house-base" x="0" y="5" width="30" height="7" rx="2"/>
+                                <polygon class="house-base" points="4,5 12,0 20,0 26,5"/>
+                                <circle cx="6" cy="11" r="3" class="house-base"/>
+                                <circle cx="24" cy="11" r="3" class="house-base"/>
+                                <rect x="0" y="6" width="2" height="3" fill="#ff4d4d" rx="1"/>
+                                <rect x="28" y="6" width="2" height="3" fill="#ffdd66" rx="1"/>
+                                <animateTransform attributeName="transform" type="translate" values="-800 50; 1200 50" dur="14s" repeatCount="indefinite" />
+                            </g>
+
+                            <!-- Driving Car (Left-bound) -->
+                            <g>
+                                <rect class="house-base" x="0" y="5" width="30" height="7" rx="2"/>
+                                <polygon class="house-base" points="4,5 12,0 20,0 26,5"/>
+                                <circle cx="6" cy="11" r="3" class="house-base"/>
+                                <circle cx="24" cy="11" r="3" class="house-base"/>
+                                <rect x="28" y="6" width="2" height="3" fill="#ff4d4d" rx="1"/>
+                                <rect x="0" y="6" width="2" height="3" fill="#ffdd66" rx="1"/>
+                                <animateTransform attributeName="transform" type="translate" values="1200 62; -800 62" dur="11s" repeatCount="indefinite" />
+                            </g>
+                        </g>
+                    </g>
+                    
+                    <!-- SKYLINE SCENERY -->
+                    <g id="env-skyline" style="display: none;">
+                    </g>
+
                     <!-- Front hills -->
                     <path class="hill-front-1" d="M0 780 C 635 620, 885 600, 1085 780 L 1085 1080 L 0 1080 Z"/>
                     <path class="hill-front-2" d="M885 780 C 1035 650, 1235 640, 1920 780 L 1920 1080 L 885 1080 Z"/>
@@ -130,15 +448,21 @@
 
         <!-- top bar -->
         <header class="main-top">
-            <a class="hub-chip" href="/" aria-label="Back to Bagel Hub">‹</a>
+            <a class="hub-chip" id="hub-chip" href="/" aria-label="Back to Bagel Hub">‹</a>
             <h1 class="city-name" id="city-label">Loading…</h1>
-            <button id="locate-btn" class="round-btn" type="button" aria-label="Use my location">
-                <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
-            </button>
+            <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                <button id="unit-btn" class="round-btn" type="button" aria-label="Toggle temperature unit" style="margin-left: 0; font-weight: 600; font-size: 0.9rem;">°C</button>
+                <button id="dictate-btn" class="round-btn" type="button" aria-label="Read weather aloud" style="margin-left: 0;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                </button>
+                <button id="locate-btn" class="round-btn" type="button" aria-label="Use my location" style="margin-left: 0;">
+                    <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                </button>
+            </div>
         </header>
 
-        <!-- date chip -->
-        <div class="date-chip" aria-hidden="true">
+        <!-- forecast date selector -->
+        <button class="date-chip" id="date-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="date-menu">
             <div class="date-left">
                 <div class="date-day" id="chip-day">--</div>
                 <div class="date-month" id="chip-month">---</div>
@@ -147,7 +471,9 @@
                 <div id="chip-weekday">-----</div>
                 <div id="chip-date">-- --</div>
             </div>
-        </div>
+            <span class="date-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="date-menu" id="date-menu" role="listbox" aria-label="Choose forecast date" hidden></div>
 
 
         <main class="main-scroll">
@@ -168,11 +494,13 @@
 
             <!-- white content -->
             <div class="sheet">
+                
+                <div id="content-weather">
                 <section class="two-day">
                     <div class="day-cell">
                         <div>
                             <div class="range" id="today-range">--°/--°</div>
-                            <div class="cell-label">Today</div>
+                            <div class="cell-label" id="primary-day-label">Today</div>
                         </div>
                         <div class="cell-right">
                             <div class="cell-icon" id="today-icon">☁️</div>
@@ -183,7 +511,7 @@
                     <div class="day-cell">
                         <div>
                             <div class="range" id="tomorrow-range">--°/--°</div>
-                            <div class="cell-label">Tomorrow</div>
+                            <div class="cell-label" id="secondary-day-label">Tomorrow</div>
                         </div>
                         <div class="cell-right">
                             <div class="cell-icon" id="tomorrow-icon">☁️</div>
@@ -200,135 +528,166 @@
                             <span>☀︎↓ <b id="head-sunset">--:--</b></span>
                         </div>
                     </div>
-                    <div class="hscroll" id="hourly-scroll"></div>
+                    <div class="hscroll" id="hourly-scroll">
+                        <div class="band" style="opacity: 0.6">
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                            <div class="day-col"><div class="c-time">Time</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-cond">Loading</div></div>
+                        </div>
+                    </div>
                 </section>
 
                 <section class="panel">
                     <div class="panel-head"><h2>15-Day Forecast</h2></div>
-                    <div class="hscroll" id="daily-scroll"></div>
-                </section>
-
-                <section class="panel life-panel">
-                    <div class="panel-head"><h2>Life Index</h2></div>
-                    <div class="life-top">
-                        <div class="date-card">
-                            <div class="red-date" id="life-date">July --</div>
-                            <div class="date-sub" id="life-sub">-- | ----</div>
+                    <div class="hscroll" id="daily-scroll">
+                        <div class="band" style="opacity: 0.6">
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
                         </div>
-                        <div class="tips">
-                            <div class="tip"><span class="tip-badge good">Tip</span><span id="tip-good">—</span></div>
-                            <div class="tip"><span class="tip-badge warn">Note</span><span id="tip-warn">—</span></div>
-                        </div>
-                    </div>
-                    <div class="life-grid">
-                        <div class="life-item">
-                            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 6.6 16 4l-1 2h-6L8 4 3.6 6.6l2 4.4 2.4-1v10h8V10l2.4 1z"/></svg>
-                            <div class="life-value" id="idx-clothing">—</div>
-                            <div class="life-label">Clothing</div>
-                        </div>
-                        <div class="life-item">
-                            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="9.5" width="15.6" height="7" rx="3.5" transform="rotate(-40 12 13)"/><line x1="9.7" y1="9.2" x2="14.3" y2="14.8"/><line x1="16" y1="4" x2="16.5" y2="5.2"/><line x1="18.5" y1="3.5" x2="18.2" y2="4.8"/><line x1="20.5" y1="5.5" x2="19.4" y2="6.2"/></svg>
-                            <div class="life-value" id="idx-cold">—</div>
-                            <div class="life-label">Cold Risk</div>
-                        </div>
-                        <div class="life-item">
-                            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.3" y1="5.3" x2="7" y2="7"/><line x1="17" y1="17" x2="18.7" y2="18.7"/><line x1="5.3" y1="18.7" x2="7" y2="17"/><line x1="17" y1="7" x2="18.7" y2="5.3"/></svg>
-                            <div class="life-value" id="idx-uv">—</div>
-                            <div class="life-label">UV Index</div>
-                        </div>
-                        <div class="life-item">
-                            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3l2-5h12l2 5v3"/><path d="M4 16h16v3h-2m-14-3v3h2m10 0h-8"/><circle cx="7.5" cy="16" r="0.5"/><circle cx="16.5" cy="16" r="0.5"/></svg>
-                            <div class="life-value" id="idx-carwash">—</div>
-                            <div class="life-label">Car Wash</div>
-                        </div>
-                        <div class="life-item">
-                            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><line x1="9" y1="9.5" x2="9" y2="10.5"/><line x1="15" y1="9.5" x2="15" y2="10.5"/></svg>
-                            <div class="life-value" id="idx-comfort">—</div>
-                            <div class="life-label">Comfort</div>
-                        </div>
-                        <div class="life-item empty"></div>
                     </div>
                 </section>
 
-                <footer class="attribution">Weather data by Open-Meteo</footer>
+
+                </div>
+
+                <div id="content-details" hidden>
+                    <div class="advice-card" id="detail-advice">—</div>
+                    
+                    <section class="detail-card">
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span>
+                            <div><div class="d-label">Feels Like</div><div class="d-value" id="feels-like">--°</div></div>
+                        </div>
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.6" y1="5.6" x2="7" y2="7"/><line x1="17" y1="17" x2="18.4" y2="18.4"/><line x1="5.6" y1="18.4" x2="7" y2="17"/><line x1="17" y1="7" x2="18.4" y2="5.6"/></svg></span>
+                            <div><div class="d-label">UV Index</div><div class="d-value" id="uv-index">—</div></div>
+                        </div>
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.3 6 11a6 6 0 1 1-12 0c0-4.7 6-11 6-11z"/></svg></span>
+                            <div><div class="d-label">Humidity</div><div class="d-value" id="humidity">--%</div></div>
+                        </div>
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="13" x2="15" y2="10"/><line x1="12" y1="5" x2="12" y2="3"/></svg></span>
+                            <div><div class="d-label">Pressure</div><div class="d-value" id="pressure">-- hPa</div></div>
+                        </div>
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>
+                            <div><div class="d-label">Wind</div><div class="d-value" id="wind-detail">—</div></div>
+                        </div>
+                        <div class="d-metric">
+                            <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+                            <div><div class="d-label">Visibility</div><div class="d-value" id="visibility">—</div></div>
+                        </div>
+                    </section>
+
+                    <section class="detail-insights-card" aria-labelledby="conditions-heading">
+                        <div class="detail-section-head">
+                            <div>
+                                <p class="detail-eyebrow">Right now</p>
+                                <h2 id="conditions-heading">More conditions</h2>
+                            </div>
+                            <span class="detail-live">Live</span>
+                        </div>
+                        <div class="insight-grid">
+                            <article class="insight-tile" id="air-quality-tile">
+                                <span class="insight-icon insight-icon-aqi" aria-hidden="true">AQ</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Air quality</span>
+                                    <strong class="insight-value" id="air-quality-score">--</strong>
+                                    <span class="insight-note" id="air-quality-label">Loading…</span>
+                                </div>
+                            </article>
+                            <article class="insight-tile" id="wind-gust-tile">
+                                <span class="insight-icon" aria-hidden="true">〰</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Wind gusts</span>
+                                    <strong class="insight-value" id="wind-gust">-- km/h</strong>
+                                    <span class="insight-note" id="wind-gust-state">Checking</span>
+                                </div>
+                            </article>
+                            <article class="insight-tile">
+                                <span class="insight-icon" aria-hidden="true">☁</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Cloud cover</span>
+                                    <strong class="insight-value" id="cloud-cover">--%</strong>
+                                    <span class="insight-note">Sky covered</span>
+                                </div>
+                            </article>
+                            <article class="insight-tile">
+                                <span class="insight-icon" aria-hidden="true">◌</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Dew point</span>
+                                    <strong class="insight-value" id="dew-point">--°</strong>
+                                    <span class="insight-note">Moisture comfort</span>
+                                </div>
+                            </article>
+                            <article class="insight-tile">
+                                <span class="insight-icon insight-icon-sun" aria-hidden="true">☀</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Sunshine</span>
+                                    <strong class="insight-value" id="sunshine-duration">-- hr</strong>
+                                    <span class="insight-note">Expected today</span>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+
+                    <section class="rain-detail-card" aria-labelledby="rain-heading">
+                        <div class="detail-section-head">
+                            <div>
+                                <p class="detail-eyebrow">Next 24 hours</p>
+                                <h2 id="rain-heading">Chance of rain</h2>
+                            </div>
+                            <span class="rain-peak" id="rain-peak">Peak --%</span>
+                        </div>
+                        <div class="rain-scroll" id="rain-hourly" role="list" aria-label="Hourly rain probability">
+                            <div class="rain-loading">Loading hourly rain chances…</div>
+                        </div>
+                    </section>
+
+                    <section class="sun-card" aria-label="Sunrise and sunset chart">
+                        <div class="sun-chart-wrap">
+                            <svg id="sun-arc" viewBox="0 0 220 82" aria-hidden="true">
+                                <path id="arc-dashed" d="" fill="none"/>
+                                <path id="arc-fill" d="" stroke="none"/>
+                                <path id="arc-solid" d="" fill="none"/>
+                                <circle id="arc-sun" cx="-10" cy="-10" r="7"/>
+                            </svg>
+                        </div>
+                        <div class="sun-card-times">
+                            <div class="sun-col"><div class="d-label">Sunrise</div><div class="d-value" id="sunrise">--:--</div></div>
+                            <div class="sun-col"><div class="d-label">Sunset</div><div class="d-value" id="sunset">--:--</div></div>
+                        </div>
+                    </section>
+                    
+                    <div style="padding: 1rem; text-align: center; color: var(--ink-3); font-size: 0.8rem; grid-column: 1 / -1;" id="updated-at"></div>
+                </div>
+
+
             </div>
         </main>
 
     </div>
 
-    <!-- ============ DETAIL VIEW ============ -->
-    <div id="view-detail" hidden>
-        <div class="detail-hero-bg">
-            <header class="detail-top">
-                <button id="back-btn" class="back-btn" type="button" aria-label="Back">‹</button>
-                <h2 id="detail-city">—</h2>
-                <span class="detail-updated" id="updated-at"></span>
-            </header>
-            <div class="detail-hero">
-                <div class="detail-temp-row">
-                    <span class="detail-temp"><span id="detail-temp">--</span>°</span>
-                    <span class="detail-cond-col">
-                        <span class="detail-icon" id="detail-icon">☁️</span>
-                        <span id="detail-cond">—</span>
-                    </span>
-                </div>
-                <p class="detail-advice" id="detail-advice">—</p>
-            </div>
-        </div>
 
-        <div class="detail-body">
-            <section class="detail-card">
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span>
-                    <div><div class="d-label">Feels Like</div><div class="d-value" id="feels-like">--°</div></div>
-                </div>
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.6" y1="5.6" x2="7" y2="7"/><line x1="17" y1="17" x2="18.4" y2="18.4"/><line x1="5.6" y1="18.4" x2="7" y2="17"/><line x1="17" y1="7" x2="18.4" y2="5.6"/></svg></span>
-                    <div><div class="d-label">UV Index</div><div class="d-value" id="uv-index">—</div></div>
-                </div>
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.3 6 11a6 6 0 1 1-12 0c0-4.7 6-11 6-11z"/></svg></span>
-                    <div><div class="d-label">Humidity</div><div class="d-value" id="humidity">--%</div></div>
-                </div>
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="13" x2="15" y2="10"/><line x1="12" y1="5" x2="12" y2="3"/></svg></span>
-                    <div><div class="d-label">Pressure</div><div class="d-value" id="pressure">-- hPa</div></div>
-                </div>
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>
-                    <div><div class="d-label">Wind</div><div class="d-value" id="wind-detail">—</div></div>
-                </div>
-                <div class="d-metric">
-                    <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg></span>
-                    <div><div class="d-label">Visibility</div><div class="d-value" id="visibility">—</div></div>
-                </div>
-            </section>
-
-            <section class="sun-card">
-                <div class="sun-col"><div class="d-label">Sunrise</div><div class="d-value" id="sunrise">--:--</div></div>
-                <svg id="sun-arc" viewBox="0 0 220 82" aria-hidden="true">
-                    <path id="arc-dashed" d="" fill="none"/>
-                    <path id="arc-fill" d="" stroke="none"/>
-                    <path id="arc-solid" d="" fill="none"/>
-                    <circle id="arc-sun" cx="-10" cy="-10" r="7"/>
-                </svg>
-                <div class="sun-col"><div class="d-label">Sunset</div><div class="d-value" id="sunset">--:--</div></div>
-            </section>
-        </div>
-    </div>
 
     <!-- search overlay -->
-    <div class="search-overlay" id="search-overlay" hidden>
+    <div class="search-overlay" id="search-overlay">
         <input type="text" id="city-input" placeholder="Search for a city" autocomplete="off" aria-label="Search for a city">
         <button id="search-btn" type="button">Search</button>
-        <button id="search-cancel" type="button">Cancel</button>
     </div>
 
 
     <!-- tab bar -->
     <nav class="tabbar">
         <button class="tab active" type="button" id="tab-weather">
-            <span class="tab-icon">🌤️</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.94 13A5 5 0 0 0 12 7a5 5 0 0 0-4.63 7.07 4 4 0 1 0 1.63 7.93h10a4 4 0 1 0-.06-8z"/></svg>
             <span>Weather</span>
         </button>
         <button class="tab" type="button" id="tab-search">

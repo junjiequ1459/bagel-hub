@@ -101,15 +101,68 @@
     white-space: nowrap;
   }
 
+  #hud-search-btn {
+    bottom: 20px; right: 24px;
+    display: none;
+  }
+  #hud-search-btn button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--hairline);
+    color: var(--ink-700);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+  }
+  #search-overlay {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex; flex-direction: column; align-items: center;
+    padding-top: 15vh;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+  }
+  #search-overlay.active {
+    opacity: 1; visibility: visible;
+  }
+  #search-input {
+    background: transparent; border: none; border-bottom: 2px solid var(--ink-500);
+    color: var(--glow); font-family: var(--mono); font-size: 24px;
+    width: 80%; max-width: 400px; padding: 10px; outline: none; text-align: center;
+    text-transform: uppercase;
+  }
+  #search-input:focus { border-bottom-color: var(--glow); }
+  #search-input::placeholder { color: var(--ink-500); }
+  #search-results {
+    margin-top: 20px; width: 80%; max-width: 400px;
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 60vh; overflow-y: auto;
+  }
+  .search-result {
+    padding: 12px; background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--hairline); color: var(--ink-700);
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em;
+    text-align: center; border-radius: 4px;
+  }
+  .search-result:hover, .search-result.selected {
+    background: rgba(255, 255, 255, 0.1); color: var(--glow); border-color: var(--glow);
+  }
+
   @media (max-width: 600px) {
     #hud-hint { display: none; }
+    #hud-search-btn { display: block; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     #hud-status .blink { animation: none; }
   }
 </style>
-  <script type="module" crossorigin src="/assets/hub-BaoXh_rp.js"></script>
+  <script type="module" crossorigin src="/assets/hub-seqdzPS2.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-BaGqM5RE.js">
 </head>
@@ -128,6 +181,18 @@
 </div>
 
 <div class="hud" id="hud-hint">drag to orbit &nbsp;&middot;&nbsp; scroll / pinch to zoom &nbsp;&middot;&nbsp; tap a seed to launch</div>
+
+<div class="hud" id="hud-search-btn">
+  <button id="mobile-search-btn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    SEARCH
+  </button>
+</div>
+
+<div id="search-overlay">
+  <input type="text" id="search-input" placeholder="SEARCH APPS..." autocomplete="off">
+  <div id="search-results"></div>
+</div>
 
 </body>
 </html>

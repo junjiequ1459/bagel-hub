@@ -6,15 +6,19 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 const DOM = {
     cityInput: document.getElementById('city-input') as HTMLInputElement,
     searchBtn: document.getElementById('search-btn') as HTMLButtonElement,
-    searchCancel: document.getElementById('search-cancel') as HTMLButtonElement,
     searchOverlay: $('search-overlay'),
     cityBtn: $('tab-search'),
     cityLabel: $('city-label'),
+    hubChip: $('hub-chip'),
+    unitBtn: $('unit-btn'),
+    dictateBtn: $('dictate-btn'),
     locateBtn: $('locate-btn'),
     chipDay: $('chip-day'),
     chipMonth: $('chip-month'),
     chipWeekday: $('chip-weekday'),
     chipDate: $('chip-date'),
+    dateTrigger: $('date-trigger') as HTMLButtonElement,
+    dateMenu: $('date-menu'),
     temperature: $('temperature'),
     weatherDesc: $('weather-desc'),
     windSummary: $('wind-summary'),
@@ -24,32 +28,23 @@ const DOM = {
     todayRange: $('today-range'),
     todayDesc: $('today-desc'),
     todayIcon: $('today-icon'),
+    primaryDayLabel: $('primary-day-label'),
     tomorrowRange: $('tomorrow-range'),
     tomorrowDesc: $('tomorrow-desc'),
     tomorrowIcon: $('tomorrow-icon'),
+    secondaryDayLabel: $('secondary-day-label'),
     headSunrise: $('head-sunrise'),
     headSunset: $('head-sunset'),
     hourlyScroll: $('hourly-scroll'),
     dailyScroll: $('daily-scroll'),
-    lifeDate: $('life-date'),
-    lifeSub: $('life-sub'),
-    tipGood: $('tip-good'),
-    tipWarn: $('tip-warn'),
-    idxClothing: $('idx-clothing'),
-    idxCold: $('idx-cold'),
-    idxUv: $('idx-uv'),
-    idxCarwash: $('idx-carwash'),
-    idxComfort: $('idx-comfort'),
+    envSkyline: $('env-skyline'),
+
     // detail view
-    viewMain: $('view-main'),
-    viewDetail: $('view-detail'),
-    backBtn: $('back-btn'),
+    // detail view
+    contentWeather: $('content-weather'),
+    contentDetails: $('content-details'),
     tabWeather: $('tab-weather'),
     tabDetails: $('tab-details'),
-    detailCity: $('detail-city'),
-    detailTemp: $('detail-temp'),
-    detailIcon: $('detail-icon'),
-    detailCond: $('detail-cond'),
     detailAdvice: $('detail-advice'),
     updatedAt: $('updated-at'),
     feelsLike: $('feels-like'),
@@ -58,6 +53,17 @@ const DOM = {
     pressure: $('pressure'),
     windDetail: $('wind-detail'),
     visibility: $('visibility'),
+    airQualityTile: $('air-quality-tile'),
+    airQualityScore: $('air-quality-score'),
+    airQualityLabel: $('air-quality-label'),
+    windGustTile: $('wind-gust-tile'),
+    windGust: $('wind-gust'),
+    windGustState: $('wind-gust-state'),
+    cloudCover: $('cloud-cover'),
+    dewPoint: $('dew-point'),
+    sunshineDuration: $('sunshine-duration'),
+    rainPeak: $('rain-peak'),
+    rainHourly: $('rain-hourly'),
     sunrise: $('sunrise'),
     sunset: $('sunset'),
     arcDashed: $('arc-dashed'),
@@ -77,6 +83,9 @@ interface ForecastResponse {
         wind_speed_10m: number;
         wind_direction_10m: number;
         surface_pressure: number;
+        dew_point_2m: number;
+        cloud_cover: number;
+        wind_gusts_10m: number;
     };
     hourly: {
         time: string[];
@@ -87,6 +96,13 @@ interface ForecastResponse {
         visibility: number[];
         wind_speed_10m: number[];
         wind_direction_10m: number[];
+        precipitation_probability: number[];
+        relative_humidity_2m: number[];
+        apparent_temperature: number[];
+        surface_pressure: number[];
+        cloud_cover: number[];
+        dew_point_2m: number[];
+        wind_gusts_10m: number[];
     };
     daily: {
         time: string[];
@@ -99,8 +115,34 @@ interface ForecastResponse {
         uv_index_max: number[];
         wind_speed_10m_max: number[];
         wind_direction_10m_dominant: number[];
+        sunshine_duration: number[];
     };
 }
+
+interface AirQualityResponse {
+    current?: {
+        us_aqi?: number;
+        pm2_5?: number;
+    };
+}
+
+let currentData: ForecastResponse | null = null;
+let currentLocName: string = '';
+let currentAirQuality: AirQualityResponse | null = null;
+let selectedDayIndex = 0;
+let tempUnit: 'C' | 'F' = (localStorage.getItem('tempUnit') as 'C' | 'F') || 'C';
+
+let skylinesByCity: Record<string, string> = {};
+fetch('./skylines/index.json')
+    .then(r => r.json())
+    .then(data => {
+        Object.entries(data).forEach(([key, name]) => {
+            skylinesByCity[(name as string).toLowerCase()] = key;
+        });
+    })
+    .catch(e => console.error('Failed to load skylines', e));
+
+const getTemp = (c: number) => tempUnit === 'F' ? c * 9/5 + 32 : c;
 
 // WMO weather codes → description + emoji icons
 const WEATHER_CODES: Record<number, { desc: string; day: string; night: string }> = {
@@ -204,52 +246,93 @@ const nowHourIndex = (data: ForecastResponse): number => {
     return i < 0 ? 0 : i;
 };
 
+const dayHourStartIndex = (data: ForecastResponse, dayIndex: number): number => {
+    if (dayIndex === 0) return nowHourIndex(data);
+    const date = data.daily.time[dayIndex];
+    const i = data.hourly.time.findIndex((time) => time.startsWith(`${date}T00`));
+    return i < 0 ? Math.min(dayIndex * 24, data.hourly.time.length - 1) : i;
+};
+
+const representativeHourIndex = (data: ForecastResponse, dayIndex: number): number => {
+    if (dayIndex === 0) return nowHourIndex(data);
+    const date = data.daily.time[dayIndex];
+    const noon = data.hourly.time.findIndex((time) => time.startsWith(`${date}T12`));
+    return noon < 0 ? dayHourStartIndex(data, dayIndex) : noon;
+};
+
+const dayLabel = (data: ForecastResponse, dayIndex: number): string => {
+    if (dayIndex === 0) return 'Today';
+    if (dayIndex === 1) return 'Tomorrow';
+    const p = dateParts(data.daily.time[dayIndex]);
+    return `${p.weekday.slice(0, 3)}, ${p.month.slice(0, 3)} ${p.d}`;
+};
+
 // ---- header / chips ----
 
 const renderHeader = (data: ForecastResponse, name: string) => {
     DOM.cityLabel.textContent = name;
-    DOM.detailCity.textContent = name;
+
     document.title = `Weather — ${name}`;
 
-    const p = dateParts(data.current.time);
+    const p = dateParts(data.daily.time[selectedDayIndex]);
     DOM.chipDay.textContent = String(p.d);
     DOM.chipMonth.textContent = p.month.slice(0, 3);
     DOM.chipWeekday.textContent = p.weekday;
     DOM.chipDate.textContent = `${p.month.slice(0, 3)} ${p.d}`;
-    DOM.lifeDate.textContent = `${p.month} ${p.d}`;
-    DOM.lifeSub.textContent = `${p.month.slice(0, 3)} ${p.d} | ${p.weekday}`;
 };
 
 // ---- current card ----
 
-const radarMessage = (data: ForecastResponse): string => {
-    const prob = data.daily.precipitation_probability_max[0];
-    const code = data.current.weather_code;
-    if (code >= 95) return 'Thunderstorms nearby — stay indoors if you can';
-    if (code >= 51 && code <= 82) return 'Rain is falling — grab an umbrella before heading out';
-    if (prob >= 70) return 'Rain likely today — keep an umbrella handy';
+const radarMessage = (data: ForecastResponse, dayIndex: number, code: number): string => {
+    const prob = data.daily.precipitation_probability_max[dayIndex];
+    if (code >= 95) return dayIndex === 0
+        ? 'Thunderstorms nearby — stay indoors if you can'
+        : 'Thunderstorms expected — keep plans flexible';
+    if (code >= 51 && code <= 82) return dayIndex === 0
+        ? 'Rain is falling — grab an umbrella before heading out'
+        : 'Rain expected — plan to bring an umbrella';
+    if (prob >= 70) return 'Rain likely — keep an umbrella handy';
     if (prob >= 30) return 'Showers possible later — the radar is watching the sky';
     return 'No rain expected — enjoy the day';
 };
 
 const renderCurrent = (data: ForecastResponse) => {
     const { current, daily } = data;
-    const w = getWeather(current.weather_code);
-    DOM.temperature.textContent = String(Math.round(current.temperature_2m));
+    const h = representativeHourIndex(data, selectedDayIndex);
+    const isToday = selectedDayIndex === 0;
+    const code = isToday ? current.weather_code : data.hourly.weather_code[h];
+    const temperature = isToday ? current.temperature_2m : data.hourly.temperature_2m[h];
+    const windSpeed = isToday ? current.wind_speed_10m : data.hourly.wind_speed_10m[h];
+    const windDirection = isToday ? current.wind_direction_10m : data.hourly.wind_direction_10m[h];
+    const humidity = isToday ? current.relative_humidity_2m : data.hourly.relative_humidity_2m[h];
+    const w = getWeather(code);
+
+    DOM.temperature.textContent = String(Math.round(getTemp(temperature)));
     DOM.weatherDesc.textContent = w.desc;
-    DOM.windSummary.textContent = `${compass(current.wind_direction_10m)} Wind Level ${beaufort(current.wind_speed_10m)}`;
-    DOM.humiditySummary.textContent = `Humidity ${current.relative_humidity_2m}%`;
-    DOM.msgText.textContent = radarMessage(data);
+    DOM.windSummary.textContent = `${compass(windDirection)} Wind Level ${beaufort(windSpeed)}`;
+    DOM.humiditySummary.textContent = `Humidity ${Math.round(humidity)}%`;
+    DOM.msgText.textContent = radarMessage(data, selectedDayIndex, code);
 
-    DOM.todayRange.textContent = `${Math.round(daily.temperature_2m_max[0])}°/${Math.round(daily.temperature_2m_min[0])}°`;
-    DOM.todayDesc.textContent = getWeather(daily.weather_code[0]).desc;
-    DOM.todayIcon.textContent = getIcon(daily.weather_code[0], true);
-    DOM.tomorrowRange.textContent = `${Math.round(daily.temperature_2m_max[1])}°/${Math.round(daily.temperature_2m_min[1])}°`;
-    DOM.tomorrowDesc.textContent = getWeather(daily.weather_code[1]).desc;
-    DOM.tomorrowIcon.textContent = getIcon(daily.weather_code[1], true);
+    DOM.todayRange.textContent = `${Math.round(getTemp(daily.temperature_2m_max[selectedDayIndex]))}°/${Math.round(getTemp(daily.temperature_2m_min[selectedDayIndex]))}°`;
+    DOM.todayDesc.textContent = getWeather(daily.weather_code[selectedDayIndex]).desc;
+    DOM.todayIcon.textContent = getIcon(daily.weather_code[selectedDayIndex], true);
+    DOM.primaryDayLabel.textContent = dayLabel(data, selectedDayIndex);
 
-    DOM.headSunrise.textContent = clock(daily.sunrise[0]);
-    DOM.headSunset.textContent = clock(daily.sunset[0]);
+    const nextDayIndex = selectedDayIndex + 1;
+    if (nextDayIndex < daily.time.length) {
+        DOM.tomorrowRange.textContent = `${Math.round(getTemp(daily.temperature_2m_max[nextDayIndex]))}°/${Math.round(getTemp(daily.temperature_2m_min[nextDayIndex]))}°`;
+        DOM.tomorrowDesc.textContent = getWeather(daily.weather_code[nextDayIndex]).desc;
+        DOM.tomorrowIcon.textContent = getIcon(daily.weather_code[nextDayIndex], true);
+        DOM.secondaryDayLabel.textContent = dayLabel(data, nextDayIndex);
+    } else {
+        DOM.tomorrowRange.textContent = '—';
+        DOM.tomorrowDesc.textContent = 'End of forecast';
+        DOM.tomorrowIcon.textContent = '·';
+        DOM.secondaryDayLabel.textContent = 'Next day';
+    }
+
+    DOM.headSunrise.textContent = clock(daily.sunrise[selectedDayIndex]);
+    DOM.headSunset.textContent = clock(daily.sunset[selectedDayIndex]);
 };
 
 // ---- hourly strip with temperature curve ----
@@ -294,7 +377,7 @@ const buildCurve = (
 
 const renderHourly = (data: ForecastResponse) => {
     const { hourly } = data;
-    const start = nowHourIndex(data);
+    const start = dayHourStartIndex(data, selectedDayIndex);
     const count = Math.min(24, hourly.time.length - start);
     const COL = 96;
 
@@ -304,14 +387,14 @@ const renderHourly = (data: ForecastResponse) => {
 
     for (let k = 0; k < count; k++) {
         const i = start + k;
-        temps.push(hourly.temperature_2m[i]);
+        temps.push(getTemp(hourly.temperature_2m[i]));
 
         const col = document.createElement('div');
         col.className = 'col hour-col';
 
         const t = document.createElement('div');
         t.className = 'c-temp';
-        t.textContent = `${Math.round(hourly.temperature_2m[i])}°`;
+        t.textContent = `${Math.round(getTemp(hourly.temperature_2m[i]))}°`;
 
         const gap = document.createElement('div');
         gap.style.height = '64px';
@@ -329,8 +412,9 @@ const renderHourly = (data: ForecastResponse) => {
         sub.innerHTML = `${compass(hourly.wind_direction_10m[i])} wind<br>Level ${beaufort(hourly.wind_speed_10m[i])}`;
 
         const time = document.createElement('div');
-        time.className = 'c-time' + (k === 0 ? ' now' : '');
-        time.textContent = k === 0 ? 'Now' : `${hourly.time[i].slice(11, 13)}:00`;
+        const isNow = selectedDayIndex === 0 && k === 0;
+        time.className = 'c-time' + (isNow ? ' now' : '');
+        time.textContent = isNow ? 'Now' : `${hourly.time[i].slice(11, 13)}:00`;
 
         col.append(t, gap, icon, cond, sub, time);
         cols.appendChild(col);
@@ -342,6 +426,11 @@ const renderHourly = (data: ForecastResponse) => {
     
     band.appendChild(cols);
     DOM.hourlyScroll.appendChild(band);
+
+    if (DOM.contentWeather.hidden || cols.children.length === 0) {
+        DOM.hourlyScroll.scrollLeft = 0;
+        return;
+    }
 
     const firstCol = cols.children[0] as HTMLElement;
     const gapEl = firstCol.children[1] as HTMLElement;
@@ -368,6 +457,7 @@ const renderDaily = (data: ForecastResponse) => {
     for (let i = 0; i < n; i++) {
         const col = document.createElement('div');
         col.className = 'col day-col';
+        col.classList.toggle('selected-day', i === selectedDayIndex);
         const p = dateParts(daily.time[i]);
         const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : p.weekday.slice(0, 3);
 
@@ -389,7 +479,7 @@ const renderDaily = (data: ForecastResponse) => {
 
         const hi = document.createElement('div');
         hi.className = 'c-temp';
-        hi.textContent = `${Math.round(daily.temperature_2m_max[i])}°`;
+        hi.textContent = `${Math.round(getTemp(daily.temperature_2m_max[i]))}°`;
 
         const gap = document.createElement('div');
         gap.style.height = '104px';
@@ -397,7 +487,7 @@ const renderDaily = (data: ForecastResponse) => {
         const lo = document.createElement('div');
         lo.className = 'c-temp';
         lo.style.color = 'var(--ink-2)';
-        lo.textContent = `${Math.round(daily.temperature_2m_min[i])}°`;
+        lo.textContent = `${Math.round(getTemp(daily.temperature_2m_min[i]))}°`;
 
         const nightIcon = document.createElement('div');
         nightIcon.className = 'c-icon';
@@ -418,15 +508,20 @@ const renderDaily = (data: ForecastResponse) => {
     band.appendChild(cols);
     DOM.dailyScroll.appendChild(band);
 
+    if (DOM.contentWeather.hidden || cols.children.length === 0) {
+        DOM.dailyScroll.scrollLeft = 0;
+        return;
+    }
+
     const firstCol = cols.children[0] as HTMLElement;
     const gapEl = firstCol.children[5] as HTMLElement;
     const gapTop = gapEl.offsetTop;
 
-    const hiChart = buildCurve(daily.temperature_2m_max, COL, 52, 10, '#ff9500', -1);
+    const hiChart = buildCurve(daily.temperature_2m_max.map(getTemp), COL, 52, 10, '#ff9500', -1);
     hiChart.style.position = 'absolute';
     hiChart.style.top = `${gapTop}px`;
     
-    const loChart = buildCurve(daily.temperature_2m_min, COL, 52, 10, '#3d8bf2', -1);
+    const loChart = buildCurve(daily.temperature_2m_min.map(getTemp), COL, 52, 10, '#3d8bf2', -1);
     loChart.style.position = 'absolute';
     loChart.style.top = `${gapTop + 52}px`;
 
@@ -435,49 +530,16 @@ const renderDaily = (data: ForecastResponse) => {
     DOM.dailyScroll.scrollLeft = 0;
 };
 
-// ---- life index ----
 
-const renderLife = (data: ForecastResponse) => {
-    const { current, daily } = data;
-    const t = current.temperature_2m;
-    const hi = daily.temperature_2m_max[0];
-    const lo = daily.temperature_2m_min[0];
-    const rainProb = daily.precipitation_probability_max[0];
-    const uv = daily.uv_index_max[0];
-
-    DOM.idxClothing.textContent = hi >= 32 ? 'Very Hot' : hi >= 26 ? 'Hot' : hi >= 18 ? 'Mild' : hi >= 8 ? 'Jacket' : 'Cold';
-    DOM.idxCold.textContent = hi - lo >= 10 || (rainProb >= 60 && t < 15) ? 'Likely' : 'Low';
-    DOM.idxUv.textContent = uvLabel(uv);
-    DOM.idxCarwash.textContent = rainProb >= 40 ? 'Not Ideal' : 'Good';
-    DOM.idxComfort.textContent =
-        t >= 30 ? (current.relative_humidity_2m >= 60 ? 'Muggy' : 'Hot')
-        : t >= 20 ? 'Warm'
-        : t >= 12 ? 'Pleasant'
-        : t >= 5 ? 'Cool' : 'Cold';
-
-    if (rainProb >= 50) {
-        DOM.tipGood.textContent = 'Good day for indoor plans';
-        DOM.tipWarn.textContent = 'Carry an umbrella when out';
-    } else if (uv >= 8) {
-        DOM.tipGood.textContent = 'Great weather for going out';
-        DOM.tipWarn.textContent = 'Strong UV — wear sunscreen';
-    } else if (hi >= 33) {
-        DOM.tipGood.textContent = 'Evening walks recommended';
-        DOM.tipWarn.textContent = 'Stay hydrated in the heat';
-    } else {
-        DOM.tipGood.textContent = 'Great day for outdoor plans';
-        DOM.tipWarn.textContent = 'Check back for radar updates';
-    }
-};
 
 // ---- detail view ----
 
 const advice = (data: ForecastResponse): string => {
-    const hi = data.daily.temperature_2m_max[0];
-    const code = data.current.weather_code;
+    const hi = data.daily.temperature_2m_max[selectedDayIndex];
+    const code = data.daily.weather_code[selectedDayIndex];
     if (code >= 95) return 'Thunderstorms expected — best to stay indoors and unplug sensitive electronics.';
-    if (code >= 51 && code <= 82) return 'Wet weather today — waterproof shoes and an umbrella will serve you well.';
-    if (hi >= 30) return 'Hot today — light summer clothing like short sleeves and shorts recommended.';
+    if (code >= 51 && code <= 82) return 'Wet weather expected — waterproof shoes and an umbrella will serve you well.';
+    if (hi >= 30) return 'Hot weather — light summer clothing like short sleeves and shorts recommended.';
     if (hi >= 22) return 'Comfortable and warm — a t-shirt or light shirt is all you need.';
     if (hi >= 12) return 'A bit cool — bring a light jacket or sweater for the breeze.';
     if (hi >= 2) return 'Cold today — a warm coat and layers are recommended.';
@@ -497,10 +559,14 @@ const renderSunArc = (data: ForecastResponse) => {
     const full = `M ${P0.x} ${P0.y} Q ${P1.x} ${P1.y} ${P2.x} ${P2.y}`;
     DOM.arcDashed.setAttribute('d', full);
 
-    const sunriseMin = parseInt(data.daily.sunrise[0].slice(11, 13), 10) * 60 + parseInt(data.daily.sunrise[0].slice(14, 16), 10);
-    const sunsetMin = parseInt(data.daily.sunset[0].slice(11, 13), 10) * 60 + parseInt(data.daily.sunset[0].slice(14, 16), 10);
+    const sunrise = data.daily.sunrise[selectedDayIndex];
+    const sunset = data.daily.sunset[selectedDayIndex];
+    const sunriseMin = parseInt(sunrise.slice(11, 13), 10) * 60 + parseInt(sunrise.slice(14, 16), 10);
+    const sunsetMin = parseInt(sunset.slice(11, 13), 10) * 60 + parseInt(sunset.slice(14, 16), 10);
     const nowMin = parseInt(data.current.time.slice(11, 13), 10) * 60 + parseInt(data.current.time.slice(14, 16), 10);
-    const frac = Math.max(0, Math.min(1, (nowMin - sunriseMin) / Math.max(sunsetMin - sunriseMin, 1)));
+    const frac = selectedDayIndex === 0
+        ? Math.max(0, Math.min(1, (nowMin - sunriseMin) / Math.max(sunsetMin - sunriseMin, 1)))
+        : 0.5;
 
     // approximate partial curve with line segments
     const steps = 24;
@@ -515,53 +581,228 @@ const renderSunArc = (data: ForecastResponse) => {
     DOM.arcSolid.setAttribute('d', solid);
     DOM.arcFill.setAttribute('d', `${solid} L ${last.x.toFixed(1)} 72 L ${P0.x} 72 Z`);
 
-    const sunVisible = data.current.is_day === 1;
+    const sunVisible = selectedDayIndex > 0 || data.current.is_day === 1;
     DOM.arcSun.setAttribute('cx', sunVisible ? last.x.toFixed(1) : '-20');
     DOM.arcSun.setAttribute('cy', sunVisible ? last.y.toFixed(1) : '-20');
 };
 
+const renderAirQuality = (data: AirQualityResponse | null) => {
+    currentAirQuality = data;
+    if (selectedDayIndex !== 0) {
+        DOM.airQualityScore.textContent = '—';
+        DOM.airQualityLabel.textContent = 'Current day only';
+        DOM.airQualityTile.dataset.level = 'unknown';
+        return;
+    }
+
+    const aqi = data?.current?.us_aqi;
+    const pm25 = data?.current?.pm2_5;
+
+    if (!Number.isFinite(aqi)) {
+        DOM.airQualityScore.textContent = '—';
+        DOM.airQualityLabel.textContent = 'Unavailable';
+        DOM.airQualityTile.dataset.level = 'unknown';
+        return;
+    }
+
+    const rounded = Math.round(aqi as number);
+    const band = rounded <= 50
+        ? { label: 'Good', level: 'good' }
+        : rounded <= 100
+            ? { label: 'Moderate', level: 'moderate' }
+            : rounded <= 150
+                ? { label: 'Sensitive groups', level: 'caution' }
+                : rounded <= 200
+                    ? { label: 'Unhealthy', level: 'high' }
+                    : { label: 'Very unhealthy', level: 'severe' };
+
+    DOM.airQualityScore.textContent = String(rounded);
+    DOM.airQualityLabel.textContent = Number.isFinite(pm25)
+        ? `${band.label} · PM2.5 ${Math.round(pm25 as number)}`
+        : band.label;
+    DOM.airQualityTile.dataset.level = band.level;
+};
+
+const renderRainDetails = (data: ForecastResponse) => {
+    const start = dayHourStartIndex(data, selectedDayIndex);
+    const count = Math.min(24, data.hourly.time.length - start);
+    const probabilities = data.hourly.precipitation_probability.slice(start, start + count);
+    const peak = probabilities.length ? Math.max(...probabilities) : 0;
+
+    DOM.rainPeak.textContent = `Peak ${Math.round(peak)}%`;
+    DOM.rainHourly.innerHTML = '';
+
+    probabilities.forEach((rawProbability, offset) => {
+        const probability = Number.isFinite(rawProbability) ? Math.max(0, Math.min(100, rawProbability)) : 0;
+        const isNow = selectedDayIndex === 0 && offset === 0;
+        const time = isNow ? 'Now' : data.hourly.time[start + offset].slice(11, 13);
+        const item = document.createElement('div');
+        item.className = 'rain-hour';
+        item.setAttribute('role', 'listitem');
+        item.setAttribute('aria-label', `${time === 'Now' ? 'Now' : `${time}:00`}: ${Math.round(probability)} percent chance of rain`);
+        item.style.setProperty('--rain-height', `${Math.max(3, probability)}%`);
+
+        const chance = document.createElement('strong');
+        chance.className = 'rain-chance';
+        chance.textContent = `${Math.round(probability)}%`;
+
+        const track = document.createElement('span');
+        track.className = 'rain-bar-track';
+        const fill = document.createElement('span');
+        fill.className = 'rain-bar-fill';
+        track.appendChild(fill);
+
+        const hour = document.createElement('span');
+        hour.className = 'rain-time';
+        hour.textContent = time === 'Now' ? time : `${time}:00`;
+
+        item.append(chance, track, hour);
+        DOM.rainHourly.appendChild(item);
+    });
+};
+
 const renderDetail = (data: ForecastResponse) => {
     const { current, daily } = data;
-    const h = nowHourIndex(data);
-    const w = getWeather(current.weather_code);
+    const h = representativeHourIndex(data, selectedDayIndex);
+    const isToday = selectedDayIndex === 0;
 
-    DOM.detailTemp.textContent = String(Math.round(current.temperature_2m));
-    DOM.detailIcon.textContent = getIcon(current.weather_code, current.is_day === 1);
-    DOM.detailCond.textContent = w.desc;
     DOM.detailAdvice.textContent = advice(data);
-    DOM.updatedAt.textContent = clock(current.time);
+    DOM.updatedAt.textContent = isToday
+        ? `Updated ${clock(current.time)}`
+        : `Midday forecast · ${dayLabel(data, selectedDayIndex)}`;
+    
+    const apparentTemperature = isToday ? current.apparent_temperature : data.hourly.apparent_temperature[h];
+    const humidity = isToday ? current.relative_humidity_2m : data.hourly.relative_humidity_2m[h];
+    const pressure = isToday ? current.surface_pressure : data.hourly.surface_pressure[h];
+    const windSpeed = isToday ? current.wind_speed_10m : data.hourly.wind_speed_10m[h];
+    const windDirection = isToday ? current.wind_direction_10m : data.hourly.wind_direction_10m[h];
+    const cloudCover = isToday ? current.cloud_cover : data.hourly.cloud_cover[h];
+    const dewPoint = isToday ? current.dew_point_2m : data.hourly.dew_point_2m[h];
+    const windGust = isToday ? current.wind_gusts_10m : data.hourly.wind_gusts_10m[h];
 
-    DOM.feelsLike.textContent = `${Math.round(current.apparent_temperature)}°`;
+    DOM.feelsLike.textContent = `${Math.round(getTemp(apparentTemperature))}°`;
     DOM.uvIndex.textContent = uvLabel(data.hourly.uv_index[h]);
-    DOM.humidity.textContent = `${current.relative_humidity_2m}%`;
-    DOM.pressure.textContent = `${Math.round(current.surface_pressure)} hPa`;
-    DOM.windDetail.textContent = `${compass(current.wind_direction_10m)} Level ${beaufort(current.wind_speed_10m)}`;
+    DOM.humidity.textContent = `${Math.round(humidity)}%`;
+    DOM.pressure.textContent = `${Math.round(pressure)} hPa`;
+    DOM.windDetail.textContent = `${compass(windDirection)} Level ${beaufort(windSpeed)}`;
+    DOM.cloudCover.textContent = `${Math.round(cloudCover)}%`;
+    DOM.dewPoint.textContent = `${Math.round(getTemp(dewPoint))}°`;
+    DOM.sunshineDuration.textContent = `${(daily.sunshine_duration[selectedDayIndex] / 3600).toFixed(1)} hr`;
+
+    const gust = Math.round(windGust);
+    const gustBand = gust < 40
+        ? { label: 'Low', level: 'good' }
+        : gust < 60
+            ? { label: 'Use caution', level: 'moderate' }
+            : gust < 80
+                ? { label: 'Strong gusts', level: 'high' }
+                : { label: 'High wind warning', level: 'severe' };
+    DOM.windGust.textContent = `${gust} km/h`;
+    DOM.windGustState.textContent = gustBand.label;
+    DOM.windGustTile.dataset.level = gustBand.level;
+
     const visKm = data.hourly.visibility[h] / 1000;
     DOM.visibility.textContent = visKm >= 10 ? `${Math.round(visKm)} km` : `${visKm.toFixed(1)} km`;
 
-    DOM.sunrise.textContent = clock(daily.sunrise[0]);
-    DOM.sunset.textContent = clock(daily.sunset[0]);
+    DOM.sunrise.textContent = clock(daily.sunrise[selectedDayIndex]);
+    DOM.sunset.textContent = clock(daily.sunset[selectedDayIndex]);
+    renderAirQuality(currentAirQuality);
+    renderRainDetails(data);
     renderSunArc(data);
+};
+
+const setDateMenuOpen = (open: boolean) => {
+    DOM.dateMenu.hidden = !open;
+    DOM.dateTrigger.setAttribute('aria-expanded', String(open));
+};
+
+const renderDateMenu = (data: ForecastResponse) => {
+    DOM.dateMenu.innerHTML = '';
+
+    data.daily.time.forEach((date, index) => {
+        const p = dateParts(date);
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'date-option';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', String(index === selectedDayIndex));
+        option.setAttribute(
+            'aria-label',
+            `${dayLabel(data, index)}, ${getWeather(data.daily.weather_code[index]).desc}, high ${Math.round(getTemp(data.daily.temperature_2m_max[index]))} degrees, low ${Math.round(getTemp(data.daily.temperature_2m_min[index]))} degrees`
+        );
+
+        const day = document.createElement('span');
+        day.className = 'date-option-day';
+        day.textContent = String(p.d);
+
+        const copy = document.createElement('span');
+        copy.className = 'date-option-copy';
+        const title = document.createElement('span');
+        title.className = 'date-option-title';
+        title.textContent = dayLabel(data, index);
+        const sub = document.createElement('span');
+        sub.className = 'date-option-sub';
+        sub.textContent = `${p.month} ${p.d}`;
+        copy.append(title, sub);
+
+        const weather = document.createElement('span');
+        weather.className = 'date-option-weather';
+        const icon = document.createElement('span');
+        icon.className = 'date-option-icon';
+        icon.textContent = getIcon(data.daily.weather_code[index], true);
+        const range = document.createElement('span');
+        range.className = 'date-option-range';
+        range.textContent = `${Math.round(getTemp(data.daily.temperature_2m_max[index]))}° / ${Math.round(getTemp(data.daily.temperature_2m_min[index]))}°`;
+        weather.append(icon, range);
+
+        option.append(day, copy, weather);
+        option.addEventListener('click', () => {
+            selectedDayIndex = index;
+            renderSelectedDay(data);
+            setDateMenuOpen(false);
+            DOM.dateTrigger.focus();
+        });
+        DOM.dateMenu.appendChild(option);
+    });
+};
+
+const renderSelectedDay = (data: ForecastResponse) => {
+    const h = representativeHourIndex(data, selectedDayIndex);
+    const isToday = selectedDayIndex === 0;
+    const code = isToday ? data.current.weather_code : data.hourly.weather_code[h];
+    const windSpeed = isToday ? data.current.wind_speed_10m : data.hourly.wind_speed_10m[h];
+    const isDay = isToday ? data.current.is_day === 1 : true;
+
+    setTheme(code, isDay, windSpeed);
+    renderHeader(data, currentLocName);
+    renderCurrent(data);
+    renderHourly(data);
+    renderDaily(data);
+    renderDetail(data);
+    renderDateMenu(data);
+    DOM.dateTrigger.setAttribute('aria-label', `Choose forecast date. Selected ${dayLabel(data, selectedDayIndex)}`);
 };
 
 // ---- view switching ----
 
 const showDetail = () => {
-    DOM.viewMain.hidden = true;
-    DOM.viewDetail.hidden = false;
-    document.body.classList.add('detail-mode');
+    DOM.contentWeather.hidden = true;
+    DOM.contentDetails.hidden = false;
     DOM.tabWeather.classList.remove('active');
     DOM.tabDetails.classList.add('active');
-    window.scrollTo(0, 0);
+    document.body.classList.add('detail-mode');
 };
 
 const showMain = () => {
-    DOM.viewDetail.hidden = true;
-    DOM.viewMain.hidden = false;
-    document.body.classList.remove('detail-mode');
+    DOM.contentDetails.hidden = true;
+    DOM.contentWeather.hidden = false;
     DOM.tabDetails.classList.remove('active');
     DOM.tabWeather.classList.add('active');
-    window.scrollTo(0, 0);
+    document.body.classList.remove('detail-mode');
+    if (currentData) {
+        renderHourly(currentData);
+        renderDaily(currentData);
+    }
 };
 
 // ---- data ----
@@ -570,33 +811,68 @@ const setLoading = (isLoading: boolean) => {
     document.body.classList.toggle('loading', isLoading);
 };
 
-const fetchWeather = async (lat: number, lon: number, name: string) => {
+const fetchWeather = async (lat: number, lon: number, name: string, env: 'city' | 'suburb' | 'rural' | 'skyline' | 'none' = 'rural', skylineId?: string) => {
     try {
+        localStorage.setItem('lastWeatherLoc', JSON.stringify({ lat, lon, name, env, skylineId }));
         setLoading(true);
+        DOM.airQualityScore.textContent = '--';
+        DOM.airQualityLabel.textContent = 'Loading…';
+        DOM.airQualityTile.dataset.level = 'unknown';
+
+        const airQualityParams = [
+            `latitude=${lat}`,
+            `longitude=${lon}`,
+            'current=us_aqi,pm2_5',
+            'timezone=auto'
+        ].join('&');
+        const airQualityRequest = fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${airQualityParams}`)
+            .then(async (airResponse) => {
+                if (!airResponse.ok) throw new Error(`Air quality request failed (${airResponse.status})`);
+                return airResponse.json() as Promise<AirQualityResponse>;
+            })
+            .catch((error) => {
+                console.error('Error fetching air quality:', error);
+                return null;
+            });
+
         const params = [
             `latitude=${lat}`,
             `longitude=${lon}`,
-            'current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure',
-            'hourly=temperature_2m,weather_code,is_day,uv_index,visibility,wind_speed_10m,wind_direction_10m',
-            'daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant',
+            'current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,dew_point_2m,cloud_cover',
+            'hourly=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,uv_index,visibility,surface_pressure,cloud_cover,dew_point_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation_probability',
+            'daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,sunshine_duration,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant',
             'forecast_days=15',
             'timezone=auto'
         ].join('&');
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
         if (!res.ok) throw new Error(`Forecast request failed (${res.status})`);
         const data: ForecastResponse = await res.json();
+        
+        currentData = data;
+        currentLocName = name;
+        currentEnv = env;
+        currentAirQuality = null;
+        selectedDayIndex = 0;
+        
+        if (env === 'skyline' && skylineId) {
+            try {
+                const svgRes = await fetch(`./skylines/${skylineId}.svg`);
+                if (svgRes.ok) {
+                    let svgStr = await svgRes.text();
+                    svgStr = svgStr.replace('<svg ', '<svg width="1920" height="350" x="0" y="250" preserveAspectRatio="xMidYMax meet" ');
+                    DOM.envSkyline.innerHTML = svgStr;
+                }
+            } catch (e) {
+                console.error('Failed to fetch skyline SVG', e);
+            }
+        }
+        
+        updateEnv();
 
-        setTheme(
-            data.current.weather_code,
-            data.current.is_day === 1,
-            data.current.wind_speed_10m
-        );
-        renderHeader(data, name);
-        renderCurrent(data);
-        renderHourly(data);
-        renderDaily(data);
-        renderLife(data);
-        renderDetail(data);
+        renderSelectedDay(data);
+        DOM.airQualityScore.textContent = '--';
+        DOM.airQualityLabel.textContent = 'Loading…';
+        void airQualityRequest.then(renderAirQuality);
     } catch (error) {
         console.error('Error fetching weather:', error);
         DOM.cityLabel.textContent = 'Unavailable';
@@ -619,8 +895,11 @@ const searchCity = async (query: string) => {
         if (data.results && data.results.length > 0) {
             const loc = data.results[0];
             const displayName = loc.admin1 ? `${loc.name}, ${loc.admin1}` : loc.name;
-            await fetchWeather(loc.latitude, loc.longitude, displayName);
-            showMain();
+            const pop = loc.population || 0;
+            const sName = loc.name.toLowerCase();
+            const skylineId = skylinesByCity[sName];
+            const env = skylineId ? 'skyline' : (pop > 500000 ? 'city' : (pop > 50000 ? 'suburb' : 'rural'));
+            await fetchWeather(loc.latitude, loc.longitude, displayName, env, skylineId);
         } else {
             DOM.msgText.textContent = `No results for “${trimmed}” — try a different search`;
             setLoading(false);
@@ -643,18 +922,28 @@ const getUserLocation = (fallbackToNewYork = false) => {
         async (position) => {
             const { latitude: lat, longitude: lon } = position.coords;
             let locationName = 'My Location';
+            let env: 'city' | 'suburb' | 'rural' | 'skyline' | 'none' = 'rural';
+            let skylineId: string | undefined = undefined;
+            
             try {
-                // Reverse geocode to get actual city name
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
                 if (res.ok) {
                     const data = await res.json();
-                    locationName = data.address?.city || data.address?.town || data.address?.village || data.address?.county || 'My Location';
+                    const cityVal = data.address?.city || data.address?.town || data.address?.village || data.address?.county;
+                    locationName = cityVal || 'My Location';
+                    
+                    if (cityVal && skylinesByCity[cityVal.toLowerCase()]) {
+                        env = 'skyline';
+                        skylineId = skylinesByCity[cityVal.toLowerCase()];
+                    } else if (data.address?.city) env = 'city';
+                    else if (data.address?.town || data.address?.suburb) env = 'suburb';
+                    else env = 'rural';
                 }
             } catch (err) {
                 console.error('Reverse geocoding failed:', err);
             }
-            await fetchWeather(lat, lon, locationName);
-            showMain();
+
+            await fetchWeather(lat, lon, locationName, env, skylineId);
         },
         (error) => {
             console.error('Geolocation error:', error);
@@ -673,12 +962,29 @@ const getUserLocation = (fallbackToNewYork = false) => {
 // ---- events ----
 
 const toggleSearch = (show: boolean) => {
-    DOM.searchOverlay.hidden = !show;
-    if (show) DOM.cityInput.focus();
+    if (show) {
+        setDateMenuOpen(false);
+        DOM.cityInput.value = '';
+        DOM.searchOverlay.classList.add('active');
+        // Small delay ensures display/visibility styles are fully applied before focusing
+        setTimeout(() => DOM.cityInput.focus(), 50);
+    } else {
+        DOM.searchOverlay.classList.remove('active');
+    }
 };
 
-DOM.cityBtn.addEventListener('click', () => toggleSearch(DOM.searchOverlay.hidden));
-DOM.searchCancel.addEventListener('click', () => toggleSearch(false));
+DOM.dateTrigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (!currentData) return;
+    const shouldOpen = DOM.dateMenu.hidden;
+    setDateMenuOpen(shouldOpen);
+    if (shouldOpen) {
+        const selected = DOM.dateMenu.querySelector<HTMLElement>('[aria-selected="true"]');
+        selected?.scrollIntoView({ block: 'nearest' });
+    }
+});
+
+DOM.cityBtn.addEventListener('click', () => toggleSearch(!DOM.searchOverlay.classList.contains('active')));
 DOM.searchBtn.addEventListener('click', () => {
     searchCity(DOM.cityInput.value);
     toggleSearch(false);
@@ -690,14 +996,57 @@ DOM.cityInput.addEventListener('keydown', (e) => {
     }
 });
 document.addEventListener('click', (e) => {
-    if (!DOM.searchOverlay.hidden) {
-        const target = e.target as Node;
+    const target = e.target as Node;
+    if (DOM.searchOverlay.classList.contains('active')) {
         if (!DOM.searchOverlay.contains(target) && !DOM.cityBtn.contains(target)) {
             toggleSearch(false);
         }
     }
+    if (!DOM.dateMenu.hidden && !DOM.dateMenu.contains(target) && !DOM.dateTrigger.contains(target)) {
+        setDateMenuOpen(false);
+    }
+});
+document.addEventListener('keydown', (e) => {
+    const isSearchActive = DOM.searchOverlay.classList.contains('active');
+    if (e.key === 'Escape') {
+        if (isSearchActive) toggleSearch(false);
+        if (!DOM.dateMenu.hidden) {
+            setDateMenuOpen(false);
+            DOM.dateTrigger.focus();
+        }
+    } else if (e.key === 'Enter' && !isSearchActive) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'A') {
+            e.preventDefault();
+            toggleSearch(true);
+        }
+    }
 });
 DOM.locateBtn.addEventListener('click', () => getUserLocation(false));
+
+DOM.dictateBtn.addEventListener('click', () => {
+    if (!('speechSynthesis' in window)) return;
+    
+    const city = DOM.cityLabel.textContent;
+    const temp = DOM.temperature.textContent;
+    const desc = DOM.weatherDesc.textContent;
+    
+    if (city === 'Loading…' || temp === '--' || !city) return;
+
+    window.speechSynthesis.cancel(); // Stop any currently playing speech
+
+    const rangeText = DOM.todayRange.textContent || '';
+    const parts = rangeText.replace(/°/g, '').split('/');
+    const high = parts[0];
+    const low = parts[1];
+    
+    const text = `Currently in ${city}, it is ${temp} degrees and ${desc}. ` +
+                 (high && low ? `Today's high will be ${high} with a low of ${low}.` : '');
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95; // slightly slower for better enunciation
+    window.speechSynthesis.speak(utterance);
+});
 
 DOM.currentCard.addEventListener('click', showDetail);
 DOM.currentCard.addEventListener('keydown', (e) => {
@@ -705,6 +1054,54 @@ DOM.currentCard.addEventListener('keydown', (e) => {
 });
 DOM.tabDetails.addEventListener('click', showDetail);
 DOM.tabWeather.addEventListener('click', showMain);
-DOM.backBtn.addEventListener('click', showMain);
 
-getUserLocation(true);
+DOM.hubChip.addEventListener('click', (e) => {
+    if (document.body.classList.contains('detail-mode')) {
+        e.preventDefault();
+        showMain();
+    }
+});
+
+DOM.unitBtn.textContent = `°${tempUnit}`;
+DOM.unitBtn.addEventListener('click', () => {
+    tempUnit = tempUnit === 'C' ? 'F' : 'C';
+    localStorage.setItem('tempUnit', tempUnit);
+    DOM.unitBtn.textContent = `°${tempUnit}`;
+    if (currentData) {
+        renderSelectedDay(currentData);
+    }
+});
+
+const envs = ['rural', 'suburb', 'city', 'skyline', 'none'];
+let currentEnv: 'city'|'suburb'|'rural'|'skyline'|'none' = 'none';
+
+const updateEnv = () => {
+    $('env-rural').style.display = currentEnv === 'rural' ? 'block' : 'none';
+    $('env-suburb').style.display = currentEnv === 'suburb' ? 'block' : 'none';
+    $('env-city').style.display = currentEnv === 'city' ? 'block' : 'none';
+    DOM.envSkyline.style.display = currentEnv === 'skyline' ? 'block' : 'none';
+};
+updateEnv();
+
+const bootLoc = localStorage.getItem('lastWeatherLoc');
+if (bootLoc) {
+    try {
+        const { lat, lon, name, env, skylineId } = JSON.parse(bootLoc);
+        fetchWeather(lat, lon, name, env || 'rural', skylineId);
+    } catch (e) {
+        getUserLocation(true);
+    }
+} else {
+    // First load: Use IP-based location to bypass browser hardware GPS restrictions during prerender!
+    fetch('https://get.geojs.io/v1/ip/geo.json')
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(data => {
+            const lat = parseFloat(data.latitude);
+            const lon = parseFloat(data.longitude);
+            const city = data.city || 'My Location';
+            fetchWeather(lat, lon, city);
+        })
+        .catch(() => {
+            getUserLocation(true); // fallback to hardware GPS if IP lookup fails
+        });
+}
