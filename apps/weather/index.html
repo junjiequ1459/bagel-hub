@@ -203,21 +203,6 @@
             </div>
         </main>
 
-        <!-- tab bar -->
-        <nav class="tabbar">
-            <button class="tab active" type="button" id="tab-weather">
-                <span class="tab-icon">🌤️</span>
-                <span>Weather</span>
-            </button>
-            <button class="tab" type="button" id="tab-search">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <span>Search</span>
-            </button>
-            <button class="tab" type="button" id="tab-details">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="5.5"/><line x1="16" y1="2.5" x2="16" y2="5.5"/></svg>
-                <span>Details</span>
-            </button>
-        </nav>
     </div>
 
     <!-- ============ DETAIL VIEW ============ -->
@@ -280,6 +265,23 @@
             </section>
         </div>
     </div>
+
+    <!-- tab bar -->
+    <nav class="tabbar">
+        <button class="tab active" type="button" id="tab-weather">
+            <span class="tab-icon">🌤️</span>
+            <span>Weather</span>
+        </button>
+        <button class="tab" type="button" id="tab-search">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Search</span>
+        </button>
+        <button class="tab" type="button" id="tab-details">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="5.5"/><line x1="16" y1="2.5" x2="16" y2="5.5"/></svg>
+            <span>Details</span>
+        </button>
+    </nav>
+</div>
 
     <script type="module" src="./weather.ts"></script>
 </body>

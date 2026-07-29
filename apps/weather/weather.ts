@@ -534,6 +534,8 @@ const showDetail = () => {
     DOM.viewMain.hidden = true;
     DOM.viewDetail.hidden = false;
     document.body.classList.add('detail-mode');
+    DOM.tabWeather.classList.remove('active');
+    DOM.tabDetails.classList.add('active');
     window.scrollTo(0, 0);
 };
 
@@ -541,6 +543,8 @@ const showMain = () => {
     DOM.viewDetail.hidden = true;
     DOM.viewMain.hidden = false;
     document.body.classList.remove('detail-mode');
+    DOM.tabDetails.classList.remove('active');
+    DOM.tabWeather.classList.add('active');
     window.scrollTo(0, 0);
 };
 
