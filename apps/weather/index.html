@@ -472,6 +472,10 @@
                 <div id="chip-date">-- --</div>
             </div>
             <span class="date-chevron" aria-hidden="true">⌄</span>
+            <div class="date-local-time">
+                <span>Local time</span>
+                <strong id="chip-time">--:--</strong>
+            </div>
         </button>
         <div class="date-menu" id="date-menu" role="listbox" aria-label="Choose forecast date" hidden></div>
 
@@ -595,7 +599,7 @@
                             <span class="detail-live">Live</span>
                         </div>
                         <div class="insight-grid">
-                            <article class="insight-tile" id="air-quality-tile">
+                            <article class="insight-tile insight-tile-action" id="air-quality-tile" role="button" tabindex="0" aria-label="Open air quality details">
                                 <span class="insight-icon insight-icon-aqi" aria-hidden="true">AQ</span>
                                 <div class="insight-copy">
                                     <span class="insight-label">Air quality</span>
@@ -603,7 +607,111 @@
                                     <span class="insight-note" id="air-quality-label">Loading…</span>
                                 </div>
                             </article>
-                            <article class="insight-tile" id="wind-gust-tile">
+
+                            <div id="air-quality-modal" class="air-quality-modal" role="dialog" aria-modal="true" aria-labelledby="aq-modal-title" tabindex="-1" hidden>
+                                <header class="aq-modal-header">
+                                    <div class="aq-modal-header-inner">
+                                        <div class="aq-modal-heading">
+                                            <div>
+                                                <h2 id="aq-modal-title">Air Quality</h2>
+                                                <p class="aq-modal-kicker" id="aq-modal-location">Current conditions</p>
+                                            </div>
+                                        </div>
+                                        <button class="aq-modal-close" id="aq-modal-close" type="button" aria-label="Close air quality details">✕</button>
+                                    </div>
+                                </header>
+
+                                <div class="aq-modal-scroll">
+                                    <main class="aq-modal-content">
+                                        <section class="aq-hero" id="aq-hero">
+                                            <div class="aq-score-ring">
+                                                <strong id="aq-detail-score">--</strong>
+                                            </div>
+                                            <div class="aq-hero-copy">
+                                                <div class="aq-hero-meta">
+                                                    <span class="aq-index-label">US AQI</span>
+                                                    <p class="aq-category" id="aq-detail-category">Loading…</p>
+                                                </div>
+                                                <h3 id="aq-detail-description">Checking the air around you.</h3>
+                                                <p id="aq-detail-advice">Air-quality health guidance will appear here.</p>
+                                            </div>
+                                        </section>
+
+                                        <section class="aq-map-card" aria-labelledby="aq-map-title">
+                                            <div class="aq-card-heading">
+                                                <div>
+                                                    <p class="aq-section-kicker">Nearby conditions</p>
+                                                    <h3 id="aq-map-title">Air Quality Map</h3>
+                                                </div>
+                                                <span class="aq-map-status" id="aq-map-status">Tap to load</span>
+                                            </div>
+                                            <div class="aq-map" id="aq-map" role="region" tabindex="0" aria-label="Interactive air quality map. Drag to scroll around the map.">
+                                                <div class="aq-map-tiles" id="aq-map-tiles" aria-hidden="true"></div>
+                                                <canvas id="aq-map-canvas" aria-label="Air quality heatmap around the selected location"></canvas>
+                                                <div class="aq-map-marker" aria-hidden="true"><span></span></div>
+                                                <span class="aq-map-hint" aria-hidden="true">Drag to scroll the map</span>
+                                                <a class="aq-map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
+                                            </div>
+                                            <div class="aq-map-scale" aria-label="Air quality map scale">
+                                                <span>Good</span>
+                                                <div class="aq-map-gradient">
+                                                    <strong class="aq-map-current" id="aq-map-current" hidden>—</strong>
+                                                </div>
+                                                <span>Hazardous</span>
+                                            </div>
+                                        </section>
+
+                                        <section class="aq-pollutants-card" aria-labelledby="aq-pollutants-title">
+                                            <div class="aq-card-heading">
+                                                <div>
+                                                    <p class="aq-section-kicker">What is in the air</p>
+                                                    <h3 id="aq-pollutants-title">Pollutant Details</h3>
+                                                </div>
+                                                <span class="aq-units">µg/m³</span>
+                                            </div>
+                                            <div class="aq-pollutant-grid">
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>PM2.5</span><strong id="aq-pm25">--</strong></div>
+                                                    <p>Fine particles from smoke, traffic, and combustion.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-pm25-bar"></span></div>
+                                                </article>
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>PM10</span><strong id="aq-pm10">--</strong></div>
+                                                    <p>Coarse particles such as dust, pollen, and road debris.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-pm10-bar"></span></div>
+                                                </article>
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>O₃</span><strong id="aq-ozone">--</strong></div>
+                                                    <p>Ground-level ozone formed when pollution reacts in sunlight.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-ozone-bar"></span></div>
+                                                </article>
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>NO₂</span><strong id="aq-no2">--</strong></div>
+                                                    <p>Nitrogen dioxide produced mainly by traffic and fuel burning.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-no2-bar"></span></div>
+                                                </article>
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>CO</span><strong id="aq-co">--</strong></div>
+                                                    <p>Carbon monoxide from incomplete combustion and vehicle exhaust.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-co-bar"></span></div>
+                                                </article>
+                                                <article class="aq-pollutant">
+                                                    <div class="aq-pollutant-top"><span>SO₂</span><strong id="aq-so2">--</strong></div>
+                                                    <p>Sulphur dioxide associated with fuel burning and industry.</p>
+                                                    <div class="aq-pollutant-track"><span id="aq-so2-bar"></span></div>
+                                                </article>
+                                            </div>
+                                        </section>
+
+                                        <section class="aq-explainer">
+                                            <h3>About the Air Quality Index</h3>
+                                            <p>The US AQI combines several pollutants into one health-focused score. A higher number means a greater chance of health effects, especially for children, older adults, and people with heart or lung conditions.</p>
+                                            <p class="aq-source">Forecast data from Open-Meteo and the CAMS ENSEMBLE. This is guidance, not an emergency alert.</p>
+                                        </section>
+                                    </main>
+                                </div>
+                            </div>
+                            <article class="insight-tile insight-tile-action" id="wind-gust-tile" style="cursor:pointer;">
                                 <span class="insight-icon" aria-hidden="true">〰</span>
                                 <div class="insight-copy">
                                     <span class="insight-label">Wind gusts</span>
@@ -611,6 +719,53 @@
                                     <span class="insight-note" id="wind-gust-state">Checking</span>
                                 </div>
                             </article>
+
+                            <!-- Wind Flow Map Modal -->
+                            <div id="wind-map-modal" class="wind-map-modal" hidden>
+                                <div class="wind-map-header">
+                                    <div class="wind-map-title">
+                                        <h2>Wind Flow</h2>
+                                        <span class="wind-map-subtitle" id="wind-map-info">-- km/h · --</span>
+                                    </div>
+                                    <button class="wind-map-close" id="wind-map-close" aria-label="Close wind map">✕</button>
+                                </div>
+                                <div class="wind-map-body">
+                                    <div id="wind-tiles" class="wind-tiles" aria-hidden="true"></div>
+                                    <div id="wind-radar" class="wind-radar" aria-hidden="true" hidden></div>
+                                    <canvas id="wind-canvas"></canvas>
+                                    <div class="wind-map-scale">
+                                        <span class="wind-scale-title" id="wind-scale-title">Wind (km/h)</span>
+                                        <div class="wind-scale-row">
+                                            <div class="wind-scale-bar" id="wind-scale-bar"></div>
+                                            <div class="wind-scale-labels" id="wind-scale-labels"><span>75</span><span>50</span><span>25</span><span>0</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="wind-loc-badge" id="wind-loc-badge" aria-hidden="true">
+                                        <span class="wind-badge-dir" id="wind-badge-dir">--</span>
+                                        <strong id="wind-badge-speed">--</strong>
+                                        <span class="wind-badge-unit" id="wind-badge-unit">km/h</span>
+                                    </div>
+                                    <div class="wind-layers">
+                                        <button class="wind-layers-btn" id="wind-layers-btn" aria-label="Map layers">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h13M1.5 8h13M1.5 12.5h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                        <div class="wind-layers-menu" id="wind-layers-menu" hidden>
+                                            <button data-layer="wind" class="active">Wind</button>
+                                            <button data-layer="precip">Precipitation</button>
+                                            <button data-layer="temp">Temperature</button>
+                                            <button data-layer="aqi">Air quality</button>
+                                        </div>
+                                    </div>
+                                    <div class="wind-zoom-ctrl">
+                                        <button id="wind-locate" aria-label="Go to my location">
+                                            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 1.5 L1.5 6.9 L7 9 L9.1 14.5 Z" fill="currentColor"/></svg>
+                                        </button>
+                                        <button id="wind-zoom-in" aria-label="Zoom in">+</button>
+                                        <button id="wind-zoom-out" aria-label="Zoom out">−</button>
+                                    </div>
+                                    <span class="wind-attrib">© OpenStreetMap © CARTO · Radar © RainViewer</span>
+                                </div>
+                            </div>
                             <article class="insight-tile">
                                 <span class="insight-icon" aria-hidden="true">☁</span>
                                 <div class="insight-copy">
@@ -619,7 +774,7 @@
                                     <span class="insight-note">Sky covered</span>
                                 </div>
                             </article>
-                            <article class="insight-tile">
+                            <article class="insight-tile insight-tile-action" id="dew-point-tile" role="button" tabindex="0" aria-label="Open dew point details" aria-haspopup="dialog" aria-controls="dew-point-modal">
                                 <span class="insight-icon" aria-hidden="true">◌</span>
                                 <div class="insight-copy">
                                     <span class="insight-label">Dew point</span>
@@ -627,14 +782,15 @@
                                     <span class="insight-note">Moisture comfort</span>
                                 </div>
                             </article>
-                            <article class="insight-tile">
+                            <button class="insight-tile sunshine-tile" id="sunshine-tile" type="button" aria-haspopup="dialog" aria-controls="sun-modal">
                                 <span class="insight-icon insight-icon-sun" aria-hidden="true">☀</span>
                                 <div class="insight-copy">
                                     <span class="insight-label">Sunshine</span>
                                     <strong class="insight-value" id="sunshine-duration">-- hr</strong>
-                                    <span class="insight-note">Expected today</span>
+                                    <span class="insight-note">View daylight details</span>
                                 </div>
-                            </article>
+                                <span class="sunshine-chevron" aria-hidden="true">›</span>
+                            </button>
                         </div>
                     </section>
 
@@ -665,7 +821,7 @@
                             <div class="sun-col"><div class="d-label">Sunset</div><div class="d-value" id="sunset">--:--</div></div>
                         </div>
                     </section>
-                    
+
                     <div style="padding: 1rem; text-align: center; color: var(--ink-3); font-size: 0.8rem; grid-column: 1 / -1;" id="updated-at"></div>
                 </div>
 
@@ -673,6 +829,100 @@
             </div>
         </main>
 
+    </div>
+
+    <div class="sun-modal" id="sun-modal" role="dialog" aria-modal="true" aria-labelledby="sun-modal-title" hidden>
+        <section class="sun-sheet" id="sun-sheet" tabindex="-1">
+            <div class="sun-sheet-head">
+                <div>
+                    <p class="detail-eyebrow">Sun</p>
+                    <h2 id="sun-modal-title">Daylight</h2>
+                    <p class="sun-date" id="sun-date">Today</p>
+                </div>
+                <button class="sun-close" id="sun-close" type="button" aria-label="Close daylight details">×</button>
+            </div>
+
+            <div class="sun-times-grid" aria-label="Daylight times">
+                <div><span>First light</span><strong id="first-light">--:--</strong></div>
+                <div><span>Sunrise</span><strong id="sunrise-detail">--:--</strong></div>
+                <div><span>Sunset</span><strong id="sunset-detail">--:--</strong></div>
+                <div><span>Last light</span><strong id="last-light">--:--</strong></div>
+            </div>
+
+            <div class="daylight-total"><span>Total daylight</span><strong id="total-daylight">-- hr -- min</strong></div>
+
+            <section class="daylight-chart-card" aria-labelledby="daylight-average-title">
+                <div class="daylight-chart-head">
+                    <div><h3 id="daylight-average-title">Sunrise and Sunset Averages</h3><p id="longest-daylight">Longest daylight: --</p></div>
+                </div>
+                <div class="sunrise-averages" id="sunrise-averages" aria-label="Typical monthly sunrise and sunset times"></div>
+            </section>
+        </section>
+    </div>
+
+    <div class="air-quality-modal dew-point-modal" id="dew-point-modal" role="dialog" aria-modal="true" aria-labelledby="dew-modal-title" tabindex="-1" hidden>
+        <header class="aq-modal-header">
+            <div class="aq-modal-header-inner">
+                <div class="aq-modal-heading">
+                    <h2 id="dew-modal-title">Dew Point</h2>
+                    <p class="aq-modal-kicker" id="dew-modal-location">Current conditions</p>
+                </div>
+                <button class="aq-modal-close" id="dew-modal-close" type="button" aria-label="Close dew point details">✕</button>
+            </div>
+        </header>
+
+        <div class="aq-modal-scroll">
+            <main class="aq-modal-content dew-modal-content">
+                <section class="dew-hero">
+                    <div class="dew-hero-reading">
+                        <span class="dew-drop" aria-hidden="true">◌</span>
+                        <strong id="dew-detail-current">--°</strong>
+                    </div>
+                    <div class="dew-hero-copy">
+                        <p class="aq-section-kicker" id="dew-detail-date">Today</p>
+                        <h3 id="dew-detail-comfort">Checking moisture comfort</h3>
+                        <p id="dew-detail-summary">Loading dew-point and humidity details.</p>
+                    </div>
+                </section>
+
+                <section class="dew-detail-card" aria-labelledby="dew-hourly-title">
+                    <div class="aq-card-heading">
+                        <div>
+                            <p class="aq-section-kicker">Next 24 hours</p>
+                            <h3 id="dew-hourly-title">Dew-point trend</h3>
+                        </div>
+                        <span class="dew-humidity-pill" id="dew-current-humidity">Humidity --%</span>
+                    </div>
+                    <div class="dew-hourly" id="dew-hourly" role="list" aria-label="Hourly dew-point forecast"></div>
+                </section>
+
+                <section class="dew-detail-card" aria-labelledby="dew-summary-title">
+                    <p class="aq-section-kicker">Daily summary</p>
+                    <h3 id="dew-summary-title">Moisture today</h3>
+                    <p class="dew-card-copy" id="dew-daily-summary">Loading the daily dew-point range.</p>
+                </section>
+
+                <section class="dew-detail-card" aria-labelledby="dew-comparison-title">
+                    <p class="aq-section-kicker">Daily comparison</p>
+                    <h3 id="dew-comparison-title">Average dew point</h3>
+                    <p class="dew-card-copy" id="dew-comparison-copy">Comparing nearby forecast days.</p>
+                    <div class="dew-comparison" id="dew-comparison"></div>
+                </section>
+
+                <div class="dew-info-grid">
+                    <section class="dew-detail-card" aria-labelledby="about-humidity-title">
+                        <p class="aq-section-kicker">About the measurement</p>
+                        <h3 id="about-humidity-title">Relative humidity</h3>
+                        <p class="dew-card-copy">Relative humidity is the amount of moisture in the air compared with how much the air can hold at its current temperature. Near 100%, dew or fog may form.</p>
+                    </section>
+                    <section class="dew-detail-card" aria-labelledby="about-dew-title">
+                        <p class="aq-section-kicker">About the measurement</p>
+                        <h3 id="about-dew-title">Dew point</h3>
+                        <p class="dew-card-copy">Dew point is the temperature the air must cool to before moisture condenses. A higher dew point feels more humid. It is not precipitation, though moist air can help rain develop.</p>
+                    </section>
+                </div>
+            </main>
+        </div>
     </div>
 
 
@@ -690,13 +940,13 @@
             <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.94 13A5 5 0 0 0 12 7a5 5 0 0 0-4.63 7.07 4 4 0 1 0 1.63 7.93h10a4 4 0 1 0-.06-8z"/></svg>
             <span>Weather</span>
         </button>
-        <button class="tab" type="button" id="tab-search">
-            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Search</span>
-        </button>
         <button class="tab" type="button" id="tab-details">
             <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2.5" x2="8" y2="5.5"/><line x1="16" y1="2.5" x2="16" y2="5.5"/></svg>
             <span>Details</span>
+        </button>
+        <button class="tab" type="button" id="tab-search">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Search</span>
         </button>
     </nav>
 </div>
