@@ -186,15 +186,33 @@ let airQualityMapRequestId = 0;
 let weatherRequestId = 0;
 let tempUnit: 'C' | 'F' = (localStorage.getItem('tempUnit') as 'C' | 'F') || 'C';
 
+import skylinesData from './skylines/index.json';
+
+const skylineSvgMap = import.meta.glob<string>('./skylines/*.svg', { query: '?raw', import: 'default', eager: true });
+
 let skylinesByCity: Record<string, string> = {};
-fetch('./skylines/index.json')
-    .then(r => r.json())
-    .then(data => {
-        Object.entries(data).forEach(([key, name]) => {
-            skylinesByCity[(name as string).toLowerCase()] = key;
-        });
-    })
-    .catch(e => console.error('Failed to load skylines', e));
+Object.entries(skylinesData).forEach(([key, name]) => {
+    skylinesByCity[(name as string).toLowerCase()] = key;
+});
+skylinesByCity['nyc'] = 'new-york';
+skylinesByCity['new york city'] = 'new-york';
+skylinesByCity['la'] = 'los-angeles';
+skylinesByCity['washington dc'] = 'washington-dc';
+skylinesByCity['washington, d.c.'] = 'washington-dc';
+skylinesByCity['dc'] = 'washington-dc';
+skylinesByCity['rio'] = 'rio-de-janeiro';
+
+const getSkylineId = (cityName: string): string | undefined => {
+    if (!cityName) return undefined;
+    const norm = cityName.toLowerCase().trim();
+    if (skylinesByCity[norm]) return skylinesByCity[norm];
+    for (const [name, key] of Object.entries(skylinesByCity)) {
+        if (norm.includes(name) || name.includes(norm)) {
+            return key;
+        }
+    }
+    return undefined;
+};
 
 const getTemp = (c: number) => tempUnit === 'F' ? c * 9/5 + 32 : c;
 
@@ -2029,15 +2047,10 @@ const fetchWeather = async (lat: number, lon: number, name: string, env: 'city' 
         selectedDayIndex = 0;
         
         if (env === 'skyline' && skylineId) {
-            try {
-                const svgRes = await fetch(`./skylines/${skylineId}.svg`);
-                if (svgRes.ok) {
-                    let svgStr = await svgRes.text();
-                    svgStr = svgStr.replace('<svg ', '<svg width="1920" height="350" x="0" y="250" preserveAspectRatio="xMidYMax meet" ');
-                    DOM.envSkyline.innerHTML = svgStr;
-                }
-            } catch (e) {
-                console.error('Failed to fetch skyline SVG', e);
+            const rawSvg = skylineSvgMap[`./skylines/${skylineId}.svg`];
+            if (rawSvg) {
+                let svgStr = rawSvg.replace('<svg ', '<svg width="1920" height="350" x="0" y="250" preserveAspectRatio="xMidYMax meet" ');
+                DOM.envSkyline.innerHTML = svgStr;
             }
         }
         
@@ -2083,8 +2096,7 @@ const searchCity = async (query: string) => {
             const loc = data.results[0];
             const displayName = loc.admin1 ? `${loc.name}, ${loc.admin1}` : loc.name;
             const pop = loc.population || 0;
-            const sName = loc.name.toLowerCase();
-            const skylineId = skylinesByCity[sName];
+            const skylineId = getSkylineId(loc.name) || getSkylineId(displayName) || getSkylineId(query);
             const env = skylineId ? 'skyline' : (pop > 500000 ? 'city' : (pop > 50000 ? 'suburb' : 'rural'));
             await fetchWeather(loc.latitude, loc.longitude, displayName, env, skylineId);
         } else {
@@ -2119,9 +2131,9 @@ const getUserLocation = (fallbackToNewYork = false) => {
                     const cityVal = data.address?.city || data.address?.town || data.address?.village || data.address?.county;
                     locationName = cityVal || 'My Location';
                     
-                    if (cityVal && skylinesByCity[cityVal.toLowerCase()]) {
+                    skylineId = cityVal ? getSkylineId(cityVal) : undefined;
+                    if (skylineId) {
                         env = 'skyline';
-                        skylineId = skylinesByCity[cityVal.toLowerCase()];
                     } else if (data.address?.city) env = 'city';
                     else if (data.address?.town || data.address?.suburb) env = 'suburb';
                     else env = 'rural';
