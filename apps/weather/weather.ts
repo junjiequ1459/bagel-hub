@@ -38,6 +38,7 @@ const DOM = {
     headSunset: $('head-sunset'),
     hourlyScroll: $('hourly-scroll'),
     dailyScroll: $('daily-scroll'),
+    dailyForecastHeading: $('daily-forecast-heading'),
     envSkyline: $('env-skyline'),
 
     // detail view
@@ -46,7 +47,6 @@ const DOM = {
     contentDetails: $('content-details'),
     tabWeather: $('tab-weather'),
     tabDetails: $('tab-details'),
-    detailAdvice: $('detail-advice'),
     updatedAt: $('updated-at'),
     feelsLike: $('feels-like'),
     uvIndex: $('uv-index'),
@@ -275,6 +275,11 @@ const beaufort = (kmh: number): number => {
     return 12;
 };
 
+const beaufortName = (level: number): string => {
+    const names = ['Calm', 'Light Air', 'Light Breeze', 'Gentle Breeze', 'Moderate Breeze', 'Fresh Breeze', 'Strong Breeze', 'High Wind', 'Gale', 'Strong Gale', 'Storm', 'Violent Storm', 'Hurricane'];
+    return names[Math.min(Math.max(0, level), 12)] || 'Calm';
+};
+
 const clock = (iso: string): string => iso.slice(11, 16);
 
 const minutesFromIso = (iso: string): number => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16));
@@ -496,7 +501,13 @@ const renderHourly = (data: ForecastResponse) => {
     const { hourly } = data;
     const start = dayHourStartIndex(data, selectedDayIndex);
     const count = Math.min(24, hourly.time.length - start);
-    const COL = 96;
+    const isDesktop = window.matchMedia('(min-width: 760px)').matches;
+
+    let COL = 96;
+    if (isDesktop && DOM.hourlyScroll) {
+        const containerWidth = DOM.hourlyScroll.clientWidth || 1080;
+        COL = Math.max(96, Math.floor(containerWidth / 7));
+    }
 
     const temps: number[] = [];
     const cols = document.createElement('div');
@@ -508,6 +519,10 @@ const renderHourly = (data: ForecastResponse) => {
 
         const col = document.createElement('div');
         col.className = 'col hour-col';
+        if (isDesktop) {
+            col.style.width = `${COL}px`;
+            col.style.minWidth = `${COL}px`;
+        }
 
         const t = document.createElement('div');
         t.className = 'c-temp';
@@ -558,15 +573,27 @@ const renderHourly = (data: ForecastResponse) => {
     chart.style.top = `${gapTop}px`;
     
     band.insertBefore(chart, cols);
-    DOM.hourlyScroll.scrollLeft = 0;
+    if (!isDesktop) {
+        DOM.hourlyScroll.scrollLeft = 0;
+    }
 };
 
-// ---- 15-day strip with high/low curves ----
+// ---- 15-day strip ----
 
 const renderDaily = (data: ForecastResponse) => {
     const { daily } = data;
     const n = daily.time.length;
-    const COL = 108;
+    const isDesktop = window.matchMedia('(min-width: 760px)').matches;
+
+    if (DOM.dailyForecastHeading) {
+        DOM.dailyForecastHeading.textContent = '15-Day Forecast';
+    }
+
+    let COL = 108;
+    if (isDesktop && DOM.dailyScroll) {
+        const containerWidth = DOM.dailyScroll.clientWidth || 1080;
+        COL = Math.max(108, Math.floor(containerWidth / 7));
+    }
 
     const cols = document.createElement('div');
     cols.className = 'cols';
@@ -574,7 +601,31 @@ const renderDaily = (data: ForecastResponse) => {
     for (let i = 0; i < n; i++) {
         const col = document.createElement('div');
         col.className = 'col day-col';
+        if (isDesktop) {
+            col.style.width = `${COL}px`;
+            col.style.minWidth = `${COL}px`;
+        }
         col.classList.toggle('selected-day', i === selectedDayIndex);
+        col.setAttribute('role', 'button');
+        col.setAttribute('tabindex', '0');
+        col.setAttribute(
+            'aria-label',
+            `${dayLabel(data, i)}, ${getWeather(daily.weather_code[i]).desc}, high ${Math.round(getTemp(daily.temperature_2m_max[i]))} degrees, low ${Math.round(getTemp(daily.temperature_2m_min[i]))} degrees. Click to select date.`
+        );
+
+        const selectDay = () => {
+            selectedDayIndex = i;
+            renderSelectedDay(data);
+        };
+
+        col.addEventListener('click', selectDay);
+        col.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectDay();
+            }
+        });
+
         const p = dateParts(daily.time[i]);
         const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : p.weekday.slice(0, 3);
 
@@ -594,27 +645,28 @@ const renderDaily = (data: ForecastResponse) => {
         cond.className = 'c-cond';
         cond.textContent = getWeather(daily.weather_code[i]).desc;
 
-        const hi = document.createElement('div');
+        const tempsRow = document.createElement('div');
+        tempsRow.className = 'c-temp-row';
+
+        const hi = document.createElement('span');
         hi.className = 'c-temp';
         hi.textContent = `${Math.round(getTemp(daily.temperature_2m_max[i]))}°`;
 
-        const gap = document.createElement('div');
-        gap.style.height = '104px';
+        const sep = document.createElement('span');
+        sep.className = 'c-temp-sep';
+        sep.textContent = '/';
 
-        const lo = document.createElement('div');
-        lo.className = 'c-temp';
-        lo.style.color = 'var(--ink-2)';
+        const lo = document.createElement('span');
+        lo.className = 'c-temp c-temp-lo';
         lo.textContent = `${Math.round(getTemp(daily.temperature_2m_min[i]))}°`;
 
-        const nightIcon = document.createElement('div');
-        nightIcon.className = 'c-icon';
-        nightIcon.textContent = getIcon(daily.weather_code[i], false);
+        tempsRow.append(hi, sep, lo);
 
-        const sub = document.createElement('div');
-        sub.className = 'c-sub';
-        sub.innerHTML = `${compass(daily.wind_direction_10m_dominant[i])} wind<br>Level ${beaufort(daily.wind_speed_10m_max[i])}`;
+        const subEl = document.createElement('div');
+        subEl.className = 'c-sub';
+        subEl.innerHTML = `${compass(daily.wind_direction_10m_dominant[i])} wind<br>Level ${beaufort(daily.wind_speed_10m_max[i])}`;
 
-        col.append(week, date, icon, cond, hi, gap, lo, nightIcon, sub);
+        col.append(week, date, icon, cond, tempsRow, subEl);
         cols.appendChild(col);
     }
 
@@ -624,27 +676,6 @@ const renderDaily = (data: ForecastResponse) => {
 
     band.appendChild(cols);
     DOM.dailyScroll.appendChild(band);
-
-    if (DOM.contentWeather.hidden || cols.children.length === 0) {
-        DOM.dailyScroll.scrollLeft = 0;
-        return;
-    }
-
-    const firstCol = cols.children[0] as HTMLElement;
-    const gapEl = firstCol.children[5] as HTMLElement;
-    const gapTop = gapEl.offsetTop;
-
-    const hiChart = buildCurve(daily.temperature_2m_max.map(getTemp), COL, 52, 10, '#ff9500', -1);
-    hiChart.style.position = 'absolute';
-    hiChart.style.top = `${gapTop}px`;
-    
-    const loChart = buildCurve(daily.temperature_2m_min.map(getTemp), COL, 52, 10, '#3d8bf2', -1);
-    loChart.style.position = 'absolute';
-    loChart.style.top = `${gapTop + 52}px`;
-
-    band.insertBefore(hiChart, cols);
-    band.insertBefore(loChart, cols);
-    DOM.dailyScroll.scrollLeft = 0;
 };
 
 
@@ -1134,7 +1165,6 @@ const renderDetail = (data: ForecastResponse) => {
     const h = representativeHourIndex(data, selectedDayIndex);
     const isToday = selectedDayIndex === 0;
 
-    DOM.detailAdvice.textContent = advice(data);
     DOM.updatedAt.textContent = isToday
         ? `Updated ${clock(current.time)}`
         : `Midday forecast · ${dayLabel(data, selectedDayIndex)}`;
@@ -1359,20 +1389,6 @@ const drawAirQualityHeatMap = (points: AirQualityMapPoint[]) => {
         context.fillStyle = gradient;
         context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     });
-
-    points.forEach((point) => {
-        const x = longitudeToPixel(point.lon, view.zoom) - view.topLeftX;
-        const y = latitudeToPixel(point.lat, view.zoom) - view.topLeftY;
-        if (x < -20 || x > rect.width + 20 || y < -20 || y > rect.height + 20) return;
-        const [r, g, b] = aqiRgb(point.aqi);
-        context.beginPath();
-        context.arc(x, y, 5, 0, Math.PI * 2);
-        context.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        context.fill();
-        context.lineWidth = 2;
-        context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        context.stroke();
-    });
 };
 
 const renderAirQualityMapViewport = () => {
@@ -1549,6 +1565,9 @@ DOM.airQualityTile.addEventListener('keydown', (event) => {
     }
 });
 airQualityClose.addEventListener('click', closeAirQualityDetails);
+airQualityModal.addEventListener('click', (e) => {
+    if (e.target === airQualityModal) closeAirQualityDetails();
+});
 window.addEventListener('resize', () => {
     if (airQualityModal.hidden || !currentCoords) return;
     window.clearTimeout(airQualityResizeTimer);
@@ -1606,14 +1625,27 @@ interface WindGridCache {
 let windGridCache: WindGridCache | null = null;
 let airGridCache: { key: string; aqi: Array<Array<number | null>> } | null = null;
 
-const fetchWindGrid = async (lat: number, lon: number): Promise<void> => {
-    const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-    if (windGridCache?.key === key) return;
-    const half = (GRID_N - 1) / 2;
+const computeGridBounds = (lat: number, lon: number) => {
+    const dpp = 360 / (TILE * 2 ** windZoom);
+    const cosLat = Math.cos((lat * Math.PI) / 180);
+    const rect = windCanvas?.parentElement?.getBoundingClientRect() || { width: 800, height: 600 };
+    const spanLat = Math.max(3, (rect.height * dpp * cosLat * 1.35) / 2);
+    const spanLon = Math.max(4, (rect.width * dpp * 1.35) / 2);
+
     const lats: number[] = [];
     const lons: number[] = [];
-    for (let i = half; i >= -half; i--) lats.push(+(lat + i * GRID_DLAT).toFixed(3));
-    for (let j = -half; j <= half; j++) lons.push(+(lon + j * GRID_DLON).toFixed(3));
+    for (let i = 0; i < GRID_N; i++) {
+        const t = i / (GRID_N - 1);
+        lats.push(+(lat + spanLat * (1 - 2 * t)).toFixed(3));
+        lons.push(+(lon - spanLon + 2 * spanLon * t).toFixed(3));
+    }
+    return { lats, lons };
+};
+
+const fetchWindGrid = async (lat: number, lon: number): Promise<void> => {
+    const key = `${lat.toFixed(2)},${lon.toFixed(2)},z${windZoom}`;
+    if (windGridCache?.key === key) return;
+    const { lats, lons } = computeGridBounds(lat, lon);
     const la: number[] = [];
     const lo: number[] = [];
     for (const a of lats) for (const b of lons) { la.push(a); lo.push(b); }
@@ -1655,418 +1687,91 @@ const gridUV = (h: number): { u: Float32Array; v: Float32Array } | null => {
 
 // ---- map tile background (CARTO light, tinted blue in CSS), pannable ----
 
-const lonToXt = (lon: number) => ((lon + 180) / 360) * 2 ** tileZoom;
-const latToYt = (lat: number) => {
-    const r = (lat * Math.PI) / 180;
-    return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** tileZoom;
-};
-const xtToLon = (xt: number) => (xt / 2 ** tileZoom) * 360 - 180;
-const ytToLat = (yt: number) => {
-    const n = Math.PI - (2 * Math.PI * yt) / 2 ** tileZoom;
-    return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-};
-
-// current map view center (geo + tile units) — changes while dragging
-let viewLat = 0;
-let viewLon = 0;
-let viewXt = 0;
-let viewYt = 0;
-
-let tileLayerEl: HTMLDivElement | null = null;
-let tileOriginXt = 0;
-let tileOriginYt = 0;
-const tileSeen = new Set<string>();
-
-const fillVisibleTiles = () => {
-    if (!tileLayerEl) return;
-    const n = 2 ** tileZoom;
-    const s = tileScale();
-    const rect = windTiles.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
-    const r = (window.devicePixelRatio || 1) > 1 ? '@2x' : '';
-    const halfW = W / (2 * TILE * s);
-    const halfH = H / (2 * TILE * s);
-    const x0 = Math.floor(viewXt - halfW);
-    const x1 = Math.floor(viewXt + halfW);
-    const y0 = Math.max(0, Math.floor(viewYt - halfH));
-    const y1 = Math.min(n - 1, Math.floor(viewYt + halfH));
-    for (let x = x0; x <= x1; x++) {
-        for (let y = y0; y <= y1; y++) {
-            const key = `${x},${y}`;
-            if (tileSeen.has(key)) continue;
-            tileSeen.add(key);
-            const img = document.createElement('img');
-            img.src = `https://basemaps.cartocdn.com/dark_all/${tileZoom}/${((x % n) + n) % n}/${y}${r}.png`;
-            img.alt = '';
-            img.style.left = `${Math.round((x - tileOriginXt) * TILE + W / 2)}px`;
-            img.style.top = `${Math.round((y - tileOriginYt) * TILE + H / 2)}px`;
-            tileLayerEl.appendChild(img);
-        }
-    }
-    fillRadarTiles();
-};
-
-const positionTileLayer = () => {
-    if (!tileLayerEl) return;
-    const s = tileScale();
-    const rect = windTiles.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
-    // scale about (0,0) then translate so the view center lands on screen center
-    const dx = TILE * s * (tileOriginXt - viewXt) + (W / 2) * (1 - s);
-    const dy = TILE * s * (tileOriginYt - viewYt) + (H / 2) * (1 - s);
-    const tf = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) scale(${s.toFixed(4)})`;
-    tileLayerEl.style.transformOrigin = '0 0';
-    tileLayerEl.style.transform = tf;
-    if (radarLayerEl) {
-        radarLayerEl.style.transformOrigin = '0 0';
-        radarLayerEl.style.transform = tf;
-    }
-};
-
-// keep the location badge pinned to the actual place, not the screen
-const positionBadge = () => {
-    const s = tileScale();
-    const rect = windTiles.getBoundingClientRect();
-    windBadge.style.left = `${(rect.width / 2 + (lonToXt(currentLon) - viewXt) * TILE * s).toFixed(1)}px`;
-    windBadge.style.top = `${(rect.height / 2 + (latToYt(currentLat) - viewYt) * TILE * s).toFixed(1)}px`;
-};
-
-// zoom keeping the geo point under (ax, ay) fixed on screen
-const setWindZoom = (z: number, ax?: number, ay?: number) => {
-    z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
-    const rect = windTiles.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
-    const px = ax ?? W / 2;
-    const py = ay ?? H / 2;
-
-    const s1 = tileScale();
-    const lonA = xtToLon(viewXt + (px - W / 2) / (TILE * s1));
-    const latA = ytToLat(viewYt + (py - H / 2) / (TILE * s1));
-
-    windZoom = z;
-    const newTileZoom = Math.round(windZoom);
-    const rebuild = newTileZoom !== tileZoom;
-    tileZoom = newTileZoom;
-    const s2 = tileScale();
-    viewXt = lonToXt(lonA) - (px - W / 2) / (TILE * s2);
-    viewYt = Math.max(0, Math.min(2 ** tileZoom, latToYt(latA) - (py - H / 2) / (TILE * s2)));
-    viewLon = xtToLon(viewXt);
-    viewLat = ytToLat(viewYt);
-
-    if (rebuild) {
-        initWindTiles();
-    } else {
-        positionTileLayer();
-        fillVisibleTiles();
-        positionBadge();
-        if (mapLayer !== 'wind') renderScalar();
-    }
-};
-
-// ---- map layers: wind particles or scalar heatmaps (precip / temp / AQI) ----
-
-type MapLayer = 'wind' | 'precip' | 'temp' | 'aqi';
+// ---- Map Overlay (Windy API Embed) ----
+type MapLayer = 'wind' | 'precip' | 'temp';
 let mapLayer: MapLayer = 'wind';
 
-const windBadgeUnit = $('wind-badge-unit');
 const windLayersBtn = $('wind-layers-btn');
 const windLayersMenu = $('wind-layers-menu');
-const windRadar = $('wind-radar') as HTMLDivElement;
 
-// -- RainViewer live radar (free, keyless) for the precipitation layer --
-let radarPath: string | null = null;
-let radarFetchedAt = 0;
-let radarLayerEl: HTMLDivElement | null = null;
-const radarSeen = new Set<string>();
-
-const fetchRadarMeta = async (): Promise<void> => {
-    if (radarPath && Date.now() - radarFetchedAt < 10 * 60 * 1000) return;
-    try {
-        const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-        const json = await res.json();
-        const past = json?.radar?.past;
-        if (Array.isArray(past) && past.length) {
-            radarPath = past[past.length - 1].path as string;
-            radarFetchedAt = Date.now();
-        }
-    } catch {
-        /* precip falls back to the model heatmap */
-    }
+const LAYER_TITLES: Record<MapLayer, string> = {
+    wind: 'Wind Flow',
+    precip: 'Rain & Thunder',
+    temp: 'Temperature Map',
 };
-
-const fillRadarTiles = () => {
-    if (!radarLayerEl || !radarPath || mapLayer !== 'precip') return;
-    const n = 2 ** tileZoom;
-    const s = tileScale();
-    const rect = windTiles.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
-    const halfW = W / (2 * TILE * s);
-    const halfH = H / (2 * TILE * s);
-    const x0 = Math.floor(viewXt - halfW);
-    const x1 = Math.floor(viewXt + halfW);
-    const y0 = Math.max(0, Math.floor(viewYt - halfH));
-    const y1 = Math.min(n - 1, Math.floor(viewYt + halfH));
-    for (let x = x0; x <= x1; x++) {
-        for (let y = y0; y <= y1; y++) {
-            const key = `${radarPath}/${x},${y}`;
-            if (radarSeen.has(key)) continue;
-            radarSeen.add(key);
-            const img = document.createElement('img');
-            // color scheme 2 (universal blue), smoothed, snow shown
-            img.src = `https://tilecache.rainviewer.com${radarPath}/256/${tileZoom}/${((x % n) + n) % n}/${y}/2/1_1.png`;
-            img.alt = '';
-            img.style.left = `${Math.round((x - tileOriginXt) * TILE + W / 2)}px`;
-            img.style.top = `${Math.round((y - tileOriginYt) * TILE + H / 2)}px`;
-            radarLayerEl.appendChild(img);
-        }
-    }
-};
-
-const clearScalarCanvas = () => {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = windCanvas.parentElement!.getBoundingClientRect();
-    windCanvas.width = rect.width * dpr;
-    windCanvas.height = rect.height * dpr;
-};
-
-// [value, r, g, b, alpha 0-255] stops, interpolated
-type RampStop = [number, number, number, number, number];
-const RAMPS: Record<'precip' | 'temp' | 'aqi', RampStop[]> = {
-    precip: [
-        [0, 130, 200, 255, 0], [0.2, 130, 200, 255, 90], [1, 80, 160, 250, 140],
-        [3, 40, 110, 235, 180], [6, 90, 60, 220, 210], [12, 150, 40, 200, 235],
-    ],
-    temp: [
-        [-25, 120, 70, 180, 190], [0, 60, 120, 220, 190], [10, 80, 190, 230, 185],
-        [20, 120, 200, 80, 185], [28, 240, 200, 60, 195], [35, 240, 120, 40, 205], [45, 225, 40, 40, 215],
-    ],
-    aqi: [
-        [0, 0, 228, 0, 150], [50, 255, 255, 0, 165], [100, 255, 126, 0, 185],
-        [150, 255, 0, 0, 205], [200, 143, 63, 151, 220], [300, 126, 0, 35, 235],
-    ],
-};
-
-const rampColor = (stops: RampStop[], v: number): [number, number, number, number] => {
-    if (Number.isNaN(v)) return [0, 0, 0, 0];
-    if (v <= stops[0][0]) return [stops[0][1], stops[0][2], stops[0][3], stops[0][4]];
-    for (let i = 1; i < stops.length; i++) {
-        if (v <= stops[i][0]) {
-            const t = (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]);
-            return [1, 2, 3, 4].map((k) => Math.round(stops[i - 1][k] + (stops[i][k] - stops[i - 1][k]) * t)) as
-                [number, number, number, number];
-        }
-    }
-    const s = stops[stops.length - 1];
-    return [s[1], s[2], s[3], s[4]];
-};
-
-const LAYER_UI: Record<MapLayer, { title: string; grad: string; labels: string[] }> = {
-    wind:   { title: 'Wind (km/h)', grad: 'linear-gradient(to bottom, #ffffff, #cfe7fa 50%, rgba(255,255,255,0.22))', labels: ['75', '50', '25', '0'] },
-    precip: { title: 'Precipitation (mm/h)', grad: 'linear-gradient(to bottom, #9628c8, #5a3cdc 25%, #2870eb 55%, #82c8ff 80%, rgba(130,200,255,0.15))', labels: ['12', '6', '2', '0'] },
-    temp:   { title: 'Temperature (°C)', grad: 'linear-gradient(to bottom, #e12828, #f0a83c 30%, #78c850 55%, #50bee6 78%, #7846b4 100%)', labels: ['45', '25', '5', '-25'] },
-    aqi:    { title: 'Air quality (US AQI)', grad: 'linear-gradient(to bottom, #7e0023, #8f3f97 22%, #ff0000 42%, #ff7e00 62%, #ffff00 82%, #00e400 100%)', labels: ['300', '200', '100', '0'] },
-};
-
-const updateScaleUI = () => {
-    let ui = LAYER_UI[mapLayer];
-    if (mapLayer === 'precip' && radarPath) {
-        ui = {
-            title: 'Precipitation radar (now)',
-            grad: 'linear-gradient(to bottom, #8f2ec7, #2050e0 35%, #28a0e8 65%, rgba(140,220,255,0.15))',
-            labels: ['Heavy', '', '', 'Light'],
-        };
-    }
-    $('wind-scale-title').textContent = ui.title;
-    $('wind-scale-bar').style.background = ui.grad;
-    $('wind-scale-labels').innerHTML = ui.labels.map((l) => `<span>${l}</span>`).join('');
-};
-
-const GRID_CENTER = Math.floor((GRID_N * GRID_N) / 2);
 
 const updateBadgeForLayer = () => {
-    const h = lastWind?.hour ?? 0;
+    if (!currentData) return;
+    const h = representativeHourIndex(currentData, selectedDayIndex);
+    const isToday = selectedDayIndex === 0;
+
+    const titleEl = windMapModal.querySelector('.wind-map-title h2');
+    if (titleEl) {
+        titleEl.textContent = LAYER_TITLES[mapLayer] || 'Weather Map';
+    }
+
+    const infoCity = $('wind-info-city');
+    const infoSpeed = $('wind-info-speed');
+    const infoDir = $('wind-info-dir');
+    const infoGusts = $('wind-info-gusts');
+    const infoDesc = $('wind-info-desc');
+
+    const cityName = DOM.cityLabel?.textContent || 'Current Location';
+    if (infoCity) infoCity.textContent = cityName;
+
     if (mapLayer === 'wind') {
-        if (lastWind) {
-            windBadgeDir.textContent = compass(lastWind.dir);
-            windBadgeSpeed.textContent = String(Math.round(lastWind.speed));
-        }
-        windBadgeUnit.textContent = 'km/h';
-        return;
-    }
-    windBadgeDir.textContent = '';
-    let v: number | null | undefined;
-    if (mapLayer === 'temp') {
-        v = windGridCache?.temps[GRID_CENTER]?.[h];
-        windBadgeUnit.textContent = '°C';
+        const speed = isToday ? currentData.current.wind_speed_10m : currentData.hourly.wind_speed_10m[h];
+        const dir = isToday ? currentData.current.wind_direction_10m : currentData.hourly.wind_direction_10m[h];
+        const gust = isToday ? currentData.current.wind_gusts_10m : currentData.hourly.wind_gusts_10m[h];
+        const bLevel = beaufort(speed);
+        const bDesc = beaufortName(bLevel);
+        if (infoSpeed) infoSpeed.textContent = `${Math.round(speed)} km/h`;
+        if (infoDir) infoDir.textContent = compass(dir);
+        if (infoGusts) infoGusts.textContent = `Gusts ${Math.round(gust)} km/h`;
+        if (infoDesc) infoDesc.textContent = bDesc;
+    } else if (mapLayer === 'temp') {
+        const temp = isToday ? currentData.current.temperature_2m : currentData.hourly.temperature_2m[h];
+        const displayTemp = `${Math.round(getTemp(temp))}°`;
+        if (infoSpeed) infoSpeed.textContent = displayTemp;
+        if (infoDir) infoDir.textContent = tempUnit === 'C' ? '°C' : '°F';
+        if (infoGusts) infoGusts.textContent = 'Air Temperature';
+        if (infoDesc) infoDesc.textContent = 'Live Temperature';
     } else if (mapLayer === 'precip') {
-        v = windGridCache?.precip[GRID_CENTER]?.[h];
-        windBadgeUnit.textContent = 'mm/h';
-    } else {
-        const arr = airGridCache?.aqi[GRID_CENTER];
-        v = arr ? arr[Math.min(h, arr.length - 1)] : undefined;
-        windBadgeUnit.textContent = 'AQI';
-    }
-    windBadgeSpeed.textContent = v == null || Number.isNaN(v)
-        ? '--'
-        : mapLayer === 'precip' ? v.toFixed(1) : String(Math.round(v));
-};
-
-const fetchAirGrid = async (lat: number, lon: number): Promise<void> => {
-    const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-    if (airGridCache?.key === key) return;
-    const half = (GRID_N - 1) / 2;
-    const la: number[] = [];
-    const lo: number[] = [];
-    for (let i = half; i >= -half; i--) {
-        for (let j = -half; j <= half; j++) {
-            la.push(+(lat + i * GRID_DLAT).toFixed(3));
-            lo.push(+(lon + j * GRID_DLON).toFixed(3));
-        }
-    }
-    try {
-        const res = await fetch(
-            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${la.join(',')}&longitude=${lo.join(',')}` +
-            '&hourly=us_aqi&forecast_days=5&timezone=auto'
-        );
-        const json = await res.json();
-        const arr: Array<{ hourly: { us_aqi: Array<number | null> } }> = Array.isArray(json) ? json : [json];
-        if (arr.length !== GRID_N * GRID_N) return;
-        airGridCache = { key, aqi: arr.map((p) => p.hourly.us_aqi) };
-    } catch {
-        /* overlay simply stays empty */
+        const prob = isToday ? (currentData.daily.precipitation_probability_max[0] ?? 0) : (currentData.hourly.precipitation_probability[h] ?? 0);
+        const valStr = `${prob}%`;
+        if (infoSpeed) infoSpeed.textContent = valStr;
+        if (infoDir) infoDir.textContent = 'Radar';
+        if (infoGusts) infoGusts.textContent = 'Precipitation Chance';
+        if (infoDesc) infoDesc.textContent = prob > 30 ? 'Rain Expected' : 'Low Rain Chance';
     }
 };
 
-const scalarOff = document.createElement('canvas');
+const updateWindyMap = () => {
+    const windyIframe = $('windy-iframe') as HTMLIFrameElement;
+    if (!windyIframe) return;
 
-const renderScalar = () => {
-    if (mapLayer === 'precip' && radarPath) return; // radar tiles handle it
-    const grid = windGridCache;
-    if (!grid || mapLayer === 'wind') return;
-    if (mapLayer === 'aqi') {
-        if (!airGridCache || airGridCache.key !== grid.key) {
-            const [glat, glon] = grid.key.split(',').map(Number);
-            fetchAirGrid(glat, glon).then(() => {
-                if (mapLayer === 'aqi' && !windMapModal.hidden) {
-                    renderScalar();
-                    updateBadgeForLayer();
-                }
-            });
-            return;
-        }
-    }
-    const h = lastWind?.hour ?? 0;
-    let val: (i: number) => number;
-    if (mapLayer === 'temp') val = (i) => grid.temps[i]?.[h] ?? NaN;
-    else if (mapLayer === 'precip') val = (i) => grid.precip[i]?.[h] ?? NaN;
-    else val = (i) => {
-        const arr = airGridCache!.aqi[i] || [];
-        const v = arr[Math.min(h, arr.length - 1)];
-        return v == null ? NaN : v;
+    const overlayMap: Record<MapLayer, string> = {
+        wind: 'wind',
+        temp: 'temp',
+        precip: 'rain',
     };
-    const ramp = RAMPS[mapLayer];
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = windCanvas.parentElement!.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
-    const ctx = windCanvas.getContext('2d')!;
-    windCanvas.width = W * dpr;
-    windCanvas.height = H * dpr;
-    ctx.scale(dpr, dpr);
+    const overlay = overlayMap[mapLayer] || 'wind';
+    const lat = currentLat.toFixed(3);
+    const lon = currentLon.toFixed(3);
+    const tempUnitParam = tempUnit === 'F' ? '%C2%B0F' : '%C2%B0C';
 
-    const cols = 64;
-    const rows = Math.max(32, Math.round((cols * H) / W));
-    scalarOff.width = cols;
-    scalarOff.height = rows;
-    const octx = scalarOff.getContext('2d')!;
-    const img = octx.createImageData(cols, rows);
-    const dpp = 360 / (TILE * 2 ** windZoom);
-    const cosLat = Math.cos((viewLat * Math.PI) / 180);
+    const url = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&width=100%25&height=100%25&zoom=6&level=surface&overlay=${overlay}&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=${tempUnitParam}&radarRange=-1`;
 
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const px = ((c + 0.5) * W) / cols;
-            const py = ((r + 0.5) * H) / rows;
-            const lonAt = viewLon + (px - W / 2) * dpp;
-            const latAt = viewLat - (py - H / 2) * dpp * cosLat;
-            let fx = (lonAt - grid.lons[0]) / GRID_DLON;
-            let fy = (grid.lats[0] - latAt) / GRID_DLAT;
-            fx = Math.max(0, Math.min(GRID_N - 1.001, fx));
-            fy = Math.max(0, Math.min(GRID_N - 1.001, fy));
-            const ix = Math.floor(fx);
-            const iy = Math.floor(fy);
-            const tx = fx - ix;
-            const ty = fy - iy;
-            const i00 = iy * GRID_N + ix;
-            let v00 = val(i00);
-            let v01 = val(i00 + 1);
-            let v10 = val(i00 + GRID_N);
-            let v11 = val(i00 + GRID_N + 1);
-            const good = [v00, v01, v10, v11].filter((x) => !Number.isNaN(x));
-            let v = NaN;
-            if (good.length === 4) {
-                v = (v00 * (1 - tx) + v01 * tx) * (1 - ty) + (v10 * (1 - tx) + v11 * tx) * ty;
-            } else if (good.length > 0) {
-                const mean = good.reduce((a, b) => a + b, 0) / good.length;
-                if (Number.isNaN(v00)) v00 = mean;
-                if (Number.isNaN(v01)) v01 = mean;
-                if (Number.isNaN(v10)) v10 = mean;
-                if (Number.isNaN(v11)) v11 = mean;
-                v = (v00 * (1 - tx) + v01 * tx) * (1 - ty) + (v10 * (1 - tx) + v11 * tx) * ty;
-            }
-            const [cr, cg, cb, ca] = rampColor(ramp, v);
-            const o = (r * cols + c) * 4;
-            img.data[o] = cr;
-            img.data[o + 1] = cg;
-            img.data[o + 2] = cb;
-            img.data[o + 3] = ca;
-        }
+    if (windyIframe.src !== url) {
+        windyIframe.src = url;
     }
-    octx.putImageData(img, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = 0.6;
-    ctx.drawImage(scalarOff, 0, 0, W, H);
-    ctx.globalAlpha = 1;
 };
 
 const applyMapLayer = () => {
     if (windMapModal.hidden) return;
-    updateScaleUI();
     updateBadgeForLayer();
-    windRadar.hidden = !(mapLayer === 'precip' && !!radarPath);
-    if (mapLayer === 'wind') {
-        if (lastWind) startWindAnimation(lastWind.speed, lastWind.dir, lastWind.gust, lastWind.hour);
-        return;
-    }
-    if (windAnimId) {
-        cancelAnimationFrame(windAnimId);
-        windAnimId = null;
-    }
-    if (mapLayer === 'precip') {
-        if (radarPath) {
-            clearScalarCanvas();
-            fillRadarTiles();
-            return;
-        }
-        // show the model heatmap while (or if) radar is unavailable
-        renderScalar();
-        fetchRadarMeta().then(() => {
-            if (mapLayer === 'precip' && !windMapModal.hidden && radarPath) {
-                windRadar.hidden = false;
-                clearScalarCanvas();
-                fillRadarTiles();
-                updateScaleUI();
-            }
-        });
-        return;
-    }
-    renderScalar();
+    updateWindyMap();
 };
 
 const syncLayerMenu = () => {
@@ -2081,25 +1786,7 @@ const setMapLayer = (l: MapLayer) => {
     applyMapLayer();
 };
 
-const initWindTiles = () => {
-    windTiles.replaceChildren();
-    tileSeen.clear();
-    tileLayerEl = document.createElement('div');
-    tileLayerEl.className = 'wind-tile-layer';
-    windTiles.appendChild(tileLayerEl);
-    windRadar.replaceChildren();
-    radarSeen.clear();
-    radarLayerEl = document.createElement('div');
-    radarLayerEl.className = 'wind-tile-layer';
-    windRadar.appendChild(radarLayerEl);
-    tileOriginXt = viewXt;
-    tileOriginYt = viewYt;
-    fillVisibleTiles();
-    positionTileLayer();
-    positionBadge();
-};
-
-const openWindMap = () => {
+const openWindMap = (initialLayer: MapLayer = 'wind') => {
     if (!currentData) return;
     windMapModal.hidden = false;
     document.body.classList.add('wind-map-open');
@@ -2109,33 +1796,18 @@ const openWindMap = () => {
     const speed = isToday ? currentData.current.wind_speed_10m : currentData.hourly.wind_speed_10m[h];
     const dir = isToday ? currentData.current.wind_direction_10m : currentData.hourly.wind_direction_10m[h];
     const gust = isToday ? currentData.current.wind_gusts_10m : currentData.hourly.wind_gusts_10m[h];
+    const cityName = DOM.cityLabel?.textContent || 'Current Location';
 
-    windMapInfo.textContent = `${Math.round(speed)} km/h · ${compass(dir)} · Gusts ${Math.round(gust)} km/h`;
-    windBadgeDir.textContent = compass(dir);
-    windBadgeSpeed.textContent = String(Math.round(speed));
-
-    windZoom = 6;
-    tileZoom = 6;
-    viewLat = currentLat;
-    viewLon = currentLon;
-    viewXt = lonToXt(currentLon);
-    viewYt = latToYt(currentLat);
-    initWindTiles();
+    windMapInfo.textContent = `${cityName} · ${Math.round(speed)} km/h ${compass(dir)} · Gusts ${Math.round(gust)} km/h`;
     lastWind = { speed, dir, gust, hour: h };
-    mapLayer = 'wind';
+    mapLayer = initialLayer;
     syncLayerMenu();
     applyMapLayer();
-    // pull the real regional field, then re-render the active layer with it
-    fetchWindGrid(currentLat, currentLon).then(() => {
-        if (!windMapModal.hidden && lastWind) applyMapLayer();
-    });
 };
 
 let lastWind: { speed: number; dir: number; gust: number; hour: number } | null = null;
-let windPanShift: ((dx: number, dy: number) => void) | null = null;
 window.addEventListener('resize', () => {
     if (!windMapModal.hidden && lastWind) {
-        initWindTiles();
         applyMapLayer();
     }
 });
@@ -2150,256 +1822,20 @@ const closeWindMap = () => {
     }
 };
 
-const startWindAnimation = (speed: number, dirDeg: number, gustKmh: number, hour: number) => {
-    if (windAnimId) cancelAnimationFrame(windAnimId);
 
-    const ctx = windCanvas.getContext('2d')!;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = windCanvas.parentElement!.getBoundingClientRect();
-    windCanvas.width = rect.width * dpr;
-    windCanvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    const W = rect.width;
-    const H = rect.height;
-
-    // Uniform fallback flow (used until the regional grid arrives).
-    // dirDeg is where wind comes FROM; canvas angle 0 = east, so N wind (0°) flows south (+90°).
-    const baseAngle = ((((dirDeg + 180) % 360) - 90) * Math.PI) / 180;
-
-    const uv = gridUV(hour);
-    const grid = windGridCache;
-
-    // Sample the real wind field (bilinear) at a screen position -> km/h components.
-    // Uses the live view center AND zoom so panning/zooming shift the field with the map.
-    const flowAt = (x: number, y: number, out: { u: number; v: number }) => {
-        if (!uv || !grid) {
-            out.u = speed * Math.cos(baseAngle);
-            out.v = -speed * Math.sin(baseAngle); // back to north-positive
-            return;
-        }
-        const degPerPxLon = 360 / (TILE * 2 ** windZoom);
-        const lonAt = viewLon + (x - W / 2) * degPerPxLon;
-        const latAt = viewLat - (y - H / 2) * degPerPxLon * Math.cos((viewLat * Math.PI) / 180);
-        let fx = (lonAt - grid.lons[0]) / GRID_DLON;
-        let fy = (grid.lats[0] - latAt) / GRID_DLAT;
-        fx = Math.max(0, Math.min(GRID_N - 1.001, fx));
-        fy = Math.max(0, Math.min(GRID_N - 1.001, fy));
-        const ix = Math.floor(fx);
-        const iy = Math.floor(fy);
-        const tx = fx - ix;
-        const ty = fy - iy;
-        const i00 = iy * GRID_N + ix;
-        const i01 = i00 + 1;
-        const i10 = i00 + GRID_N;
-        const i11 = i10 + 1;
-        out.u = (uv.u[i00] * (1 - tx) + uv.u[i01] * tx) * (1 - ty) + (uv.u[i10] * (1 - tx) + uv.u[i11] * tx) * ty;
-        out.v = (uv.v[i00] * (1 - tx) + uv.v[i01] * tx) * (1 - ty) + (uv.v[i10] * (1 - tx) + uv.v[i11] * tx) * ty;
-    };
-
-    // px-per-km/h pace so the center of the map moves like the reported speed
-    const speedFactor = Math.max(0.6, Math.min(speed / 22, 4.5));
-    const pace = (speedFactor * 0.85) / Math.max(speed, 3);
-
-    // Subtle gust shimmer scaled by real gustiness (gusts vs sustained)
-    const gustiness = Math.max(0, Math.min(gustKmh / Math.max(speed, 1) - 1, 1.4));
-    const gustPulse = (t: number, p: WindParticle) => {
-        if (gustiness <= 0.05) return 1;
-        const s = Math.sin(t * 0.0011 + p.gustPhase);
-        return 1 + gustiness * 0.6 * Math.max(0, s) ** 3;
-    };
-
-    const PARTICLE_COUNT = Math.min(700, Math.round(260 + speed * 5));
-    const particles: WindParticle[] = [];
-    const resetParticle = (p: WindParticle, init = false) => {
-        p.x = Math.random() * W;
-        p.y = Math.random() * H;
-        p.age = init ? Math.random() * 90 : 0;
-        p.maxAge = 80 + Math.random() * 80;
-        p.speed = 0.55 + Math.random() * 0.9;
-        p.gustPhase = Math.random() * Math.PI * 2;
-    };
-
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-        const p: WindParticle = { x: 0, y: 0, age: 0, maxAge: 0, speed: 0, gustPhase: 0 };
-        resetParticle(p, true);
-        particles.push(p);
+DOM.windGustTile.addEventListener('click', () => openWindMap('wind'));
+DOM.windGustTile.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openWindMap('wind');
     }
-
-    // let the pan handler drag existing streaks along with the map
-    windPanShift = (dx: number, dy: number) => {
-        for (const p of particles) {
-            p.x += dx;
-            p.y += dy;
-        }
-    };
-
-    const f = { u: 0, v: 0 };
-
-    const draw = (t: number) => {
-        // Fade previous trails to TRANSPARENT so the map stays visible underneath
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.lineCap = 'round';
-
-        for (const p of particles) {
-            flowAt(p.x, p.y, f);
-            // gentle meander keeps uniform-flow areas alive
-            const wob = 0.14 * Math.sin(p.x * 0.006 + t * 0.0004) * Math.cos(p.y * 0.005 - t * 0.0003);
-            const cos = Math.cos(wob);
-            const sin = Math.sin(wob);
-            const u = f.u * cos - f.v * sin;
-            const v = f.u * sin + f.v * cos;
-
-            const g = gustPulse(t, p);
-            const nx = p.x + u * pace * p.speed * g;
-            const ny = p.y - v * pace * p.speed * g; // screen y grows southward
-            p.age++;
-
-            const lifeRatio = p.age / p.maxAge;
-            const alpha = lifeRatio < 0.15 ? lifeRatio / 0.15 : lifeRatio > 0.85 ? (1 - lifeRatio) / 0.15 : 1;
-
-            // White Apple-style streaks: faster wind = brighter, thicker
-            const localKmh = Math.hypot(u, v) * g;
-            const strength = Math.min(localKmh / 60, 1);
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(nx, ny);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * (0.35 + strength * 0.55)).toFixed(3)})`;
-            ctx.lineWidth = 0.9 + strength * 1.5;
-            ctx.stroke();
-
-            p.x = nx;
-            p.y = ny;
-
-            if (p.age >= p.maxAge || p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20) {
-                resetParticle(p, false);
-            }
-        }
-
-        windAnimId = requestAnimationFrame(draw);
-    };
-
-    ctx.clearRect(0, 0, W, H);
-    windAnimId = requestAnimationFrame(draw);
-};
-
-DOM.windGustTile.addEventListener('click', openWindMap);
+});
 windMapClose.addEventListener('click', closeWindMap);
 windMapModal.addEventListener('click', (e) => {
     if (e.target === windMapModal) closeWindMap();
 });
 
 // -- map panning + pinch zoom --
-const windPtrs = new Map<number, { x: number; y: number }>();
-let windDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let dragStartXt = 0;
-let dragStartYt = 0;
-let lastPanX = 0;
-let lastPanY = 0;
-let pinchLastDist = 0;
-let pinchLastMid = { x: 0, y: 0 };
-
-const refreshGridForView = () => {
-    // wandered off the sampled wind grid? fetch a fresh one around the new view
-    if (!lastWind || !windGridCache) return;
-    const [glat, glon] = windGridCache.key.split(',').map(Number);
-    if (Math.abs(viewLat - glat) > GRID_DLAT || Math.abs(viewLon - glon) > GRID_DLON) {
-        fetchWindGrid(viewLat, viewLon).then(() => {
-            if (!windMapModal.hidden && lastWind && windPtrs.size === 0) applyMapLayer();
-        });
-    }
-};
-
-windCanvas.addEventListener('pointerdown', (e) => {
-    windCanvas.setPointerCapture(e.pointerId);
-    windPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (windPtrs.size === 1) {
-        windDragging = true;
-        windCanvas.classList.add('dragging');
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        dragStartXt = viewXt;
-        dragStartYt = viewYt;
-        lastPanX = e.clientX;
-        lastPanY = e.clientY;
-    } else if (windPtrs.size === 2) {
-        windDragging = false;
-        const [a, b] = [...windPtrs.values()];
-        pinchLastDist = Math.hypot(a.x - b.x, a.y - b.y);
-        pinchLastMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    }
-});
-
-windCanvas.addEventListener('pointermove', (e) => {
-    if (!windPtrs.has(e.pointerId)) return;
-    windPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (windPtrs.size >= 2) {
-        // pinch: pan with the midpoint, zoom around it
-        const rect = windTiles.getBoundingClientRect();
-        const [a, b] = [...windPtrs.values()];
-        const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        const s = tileScale();
-        viewXt -= (mid.x - pinchLastMid.x) / (TILE * s);
-        viewYt -= (mid.y - pinchLastMid.y) / (TILE * s);
-        viewLon = xtToLon(viewXt);
-        viewLat = ytToLat(viewYt);
-        windPanShift?.(mid.x - pinchLastMid.x, mid.y - pinchLastMid.y);
-        if (pinchLastDist > 0 && dist > 0) {
-            setWindZoom(windZoom + Math.log2(dist / pinchLastDist), mid.x - rect.left, mid.y - rect.top);
-        } else {
-            positionTileLayer();
-            fillVisibleTiles();
-            positionBadge();
-            if (mapLayer !== 'wind') renderScalar();
-        }
-        pinchLastDist = dist;
-        pinchLastMid = mid;
-        return;
-    }
-
-    if (!windDragging) return;
-    const s = tileScale();
-    viewXt = dragStartXt - (e.clientX - dragStartX) / (TILE * s);
-    viewYt = Math.max(0, Math.min(2 ** tileZoom, dragStartYt - (e.clientY - dragStartY) / (TILE * s)));
-    viewLon = xtToLon(viewXt);
-    viewLat = ytToLat(viewYt);
-    positionTileLayer();
-    fillVisibleTiles();
-    positionBadge();
-    if (mapLayer !== 'wind') renderScalar();
-    windPanShift?.(e.clientX - lastPanX, e.clientY - lastPanY);
-    lastPanX = e.clientX;
-    lastPanY = e.clientY;
-});
-
-const endWindDrag = (e: PointerEvent) => {
-    windPtrs.delete(e.pointerId);
-    if (windPtrs.size === 1) {
-        // pinch ended with one finger still down: continue as a plain drag
-        const p = [...windPtrs.values()][0];
-        windDragging = true;
-        dragStartX = p.x;
-        dragStartY = p.y;
-        dragStartXt = viewXt;
-        dragStartYt = viewYt;
-        lastPanX = p.x;
-        lastPanY = p.y;
-        return;
-    }
-    if (windPtrs.size > 0) return;
-    windDragging = false;
-    windCanvas.classList.remove('dragging');
-    refreshGridForView();
-};
-windCanvas.addEventListener('pointerup', endWindDrag);
-windCanvas.addEventListener('pointercancel', endWindDrag);
-
 window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || windMapModal.hidden) return;
     if (!windLayersMenu.hidden) {
@@ -2407,30 +1843,6 @@ window.addEventListener('keydown', (e) => {
         return;
     }
     closeWindMap();
-});
-
-// trackpad pinch (ctrl+wheel) and mouse wheel zoom, anchored under the cursor
-windCanvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const rect = windTiles.getBoundingClientRect();
-    const dz = e.ctrlKey ? -e.deltaY * 0.01 : -e.deltaY * 0.0015;
-    setWindZoom(windZoom + dz, e.clientX - rect.left, e.clientY - rect.top);
-}, { passive: false });
-
-$('wind-zoom-in').addEventListener('click', () => { setWindZoom(windZoom + 1); refreshGridForView(); });
-$('wind-zoom-out').addEventListener('click', () => { setWindZoom(windZoom - 1); refreshGridForView(); });
-
-// recenter on the current location (keeps zoom)
-$('wind-locate').addEventListener('click', () => {
-    viewLat = currentLat;
-    viewLon = currentLon;
-    viewXt = lonToXt(currentLon);
-    viewYt = latToYt(currentLat);
-    positionTileLayer();
-    fillVisibleTiles();
-    positionBadge();
-    if (mapLayer !== 'wind') renderScalar();
-    refreshGridForView();
 });
 
 // -- layer menu --
@@ -2466,6 +1878,9 @@ DOM.dewPointTile.addEventListener('keydown', (event) => {
     }
 });
 DOM.dewPointModalClose.addEventListener('click', closeDewPointDetails);
+DOM.dewPointModal.addEventListener('click', (e) => {
+    if (e.target === DOM.dewPointModal) closeDewPointDetails();
+});
 
 const closeSunDetails = () => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -2475,11 +1890,19 @@ const closeSunDetails = () => {
 
 document.body.appendChild(DOM.sunModal);
 
-DOM.sunshineTile.addEventListener('click', () => {
+const openSunModal = () => {
     if (currentData) renderDaylightDetails(currentData);
     DOM.sunModal.hidden = false;
     document.body.classList.add('modal-open');
     DOM.sunSheet.focus({ preventScroll: true });
+};
+
+DOM.sunshineTile.addEventListener('click', openSunModal);
+DOM.sunshineTile.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSunModal();
+    }
 });
 DOM.sunClose.addEventListener('click', closeSunDetails);
 DOM.sunModal.addEventListener('click', (e) => {
@@ -2488,26 +1911,41 @@ DOM.sunModal.addEventListener('click', (e) => {
 
 // ---- view switching ----
 
-const showDetail = () => {
+let savedWindowScrollY = 0;
+let savedDailyScrollLeft = 0;
+
+function showDetail() {
+    if (!DOM.contentWeather.hidden) {
+        savedWindowScrollY = window.scrollY;
+        if (DOM.dailyScroll) {
+            savedDailyScrollLeft = DOM.dailyScroll.scrollLeft;
+        }
+    }
     DOM.contentWeather.hidden = true;
     DOM.contentDetails.hidden = false;
     DOM.tabWeather.classList.remove('active');
     DOM.tabDetails.classList.add('active');
     document.body.classList.add('detail-mode');
     window.scrollTo(0, 0);
-};
+}
 
-const showMain = () => {
+function showMain() {
     DOM.contentDetails.hidden = true;
     DOM.contentWeather.hidden = false;
     DOM.tabDetails.classList.remove('active');
     DOM.tabWeather.classList.add('active');
     document.body.classList.remove('detail-mode');
+
     if (currentData) {
         renderHourly(currentData);
         renderDaily(currentData);
     }
-};
+
+    window.scrollTo(0, savedWindowScrollY);
+    if (DOM.dailyScroll) {
+        DOM.dailyScroll.scrollLeft = savedDailyScrollLeft;
+    }
+}
 
 // Desktop opens on the compact weather overview; mobile keeps its existing startup behavior.
 if (window.matchMedia('(min-width: 760px)').matches) {
@@ -2842,19 +2280,30 @@ if (bootLoc) {
         const { lat, lon, name, env, skylineId } = JSON.parse(bootLoc);
         fetchWeather(lat, lon, name, env || 'rural', skylineId);
     } catch (e) {
-        getUserLocation(true);
+        searchCity('New York');
     }
 } else {
-    // First load: Use IP-based location to bypass browser hardware GPS restrictions during prerender!
+    searchCity('New York');
     fetch('https://get.geojs.io/v1/ip/geo.json')
         .then(res => res.ok ? res.json() : Promise.reject(res))
         .then(data => {
             const lat = parseFloat(data.latitude);
             const lon = parseFloat(data.longitude);
             const city = data.city || 'My Location';
-            fetchWeather(lat, lon, city);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+                fetchWeather(lat, lon, city);
+            }
         })
-        .catch(() => {
-            getUserLocation(true); // fallback to hardware GPS if IP lookup fails
-        });
+        .catch(() => {});
 }
+
+let forecastResizeTimer: number | undefined;
+window.addEventListener('resize', () => {
+    window.clearTimeout(forecastResizeTimer);
+    forecastResizeTimer = window.setTimeout(() => {
+        if (currentData) {
+            renderHourly(currentData);
+            renderDaily(currentData);
+        }
+    }, 150);
+});

@@ -6,9 +6,9 @@
     <title>Weather</title>
     <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
     <link rel="preconnect" href="https://geocoding-api.open-meteo.com" crossorigin>
-  <script type="module" crossorigin src="/assets/app-weather-BZHIDa8h.js"></script>
+  <script type="module" crossorigin src="/assets/app-weather-CqcZH0kX.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="stylesheet" crossorigin href="/assets/app-weather-CWNI2Drz.css">
+  <link rel="stylesheet" crossorigin href="/assets/app-weather-CeNFRGnx.css">
 </head>
 <body class="theme-cloudy-day">
 
@@ -547,14 +547,14 @@
                 </section>
 
                 <section class="panel">
-                    <div class="panel-head"><h2>15-Day Forecast</h2></div>
+                    <div class="panel-head"><h2 id="daily-forecast-heading">15-Day Forecast</h2></div>
                     <div class="hscroll" id="daily-scroll">
                         <div class="band" style="opacity: 0.6">
-                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
-                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
-                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
-                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
-                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div style="height: 104px"></div><div class="c-temp">00°</div><div class="c-icon"></div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-temp">00°</div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-temp">00°</div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-temp">00°</div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-temp">00°</div></div>
+                            <div class="day-col"><div class="d-week">Day</div><div class="c-icon"></div><div class="c-temp">00°</div><div class="c-temp">00°</div></div>
                         </div>
                     </div>
                 </section>
@@ -563,8 +563,6 @@
                 </div>
 
                 <div id="content-details" hidden>
-                    <div class="advice-card" id="detail-advice">—</div>
-                    
                     <section class="detail-card">
                         <div class="d-metric">
                             <span class="d-chip"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span>
@@ -609,8 +607,46 @@
                                     <span class="insight-note" id="air-quality-label">Loading…</span>
                                 </div>
                             </article>
+                            <article class="insight-tile insight-tile-action" id="wind-gust-tile" role="button" tabindex="0" aria-label="Open wind flow map details" aria-haspopup="dialog" aria-controls="wind-map-modal">
+                                <span class="insight-icon" aria-hidden="true">〰</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Wind gusts</span>
+                                    <strong class="insight-value" id="wind-gust">-- km/h</strong>
+                                    <span class="insight-note" id="wind-gust-state">Checking</span>
+                                </div>
+                                <span class="insight-chevron" aria-hidden="true">›</span>
+                            </article>
+                            <article class="insight-tile">
+                                <span class="insight-icon" aria-hidden="true">☁</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Cloud cover</span>
+                                    <strong class="insight-value" id="cloud-cover">--%</strong>
+                                    <span class="insight-note">Sky covered</span>
+                                </div>
+                            </article>
+                            <article class="insight-tile insight-tile-action" id="dew-point-tile" role="button" tabindex="0" aria-label="Open dew point details" aria-haspopup="dialog" aria-controls="dew-point-modal">
+                                <span class="insight-icon" aria-hidden="true">◌</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Dew point</span>
+                                    <strong class="insight-value" id="dew-point">--°</strong>
+                                    <span class="insight-note">Moisture comfort</span>
+                                </div>
+                                <span class="insight-chevron" aria-hidden="true">›</span>
+                            </article>
+                            <article class="insight-tile insight-tile-action sunshine-tile" id="sunshine-tile" role="button" tabindex="0" aria-label="Open daylight details" aria-haspopup="dialog" aria-controls="sun-modal">
+                                <span class="insight-icon insight-icon-sun" aria-hidden="true">☀</span>
+                                <div class="insight-copy">
+                                    <span class="insight-label">Sunshine</span>
+                                    <strong class="insight-value" id="sunshine-duration">-- hr</strong>
+                                    <span class="insight-note">View daylight details</span>
+                                </div>
+                                <span class="insight-chevron" aria-hidden="true">›</span>
+                            </article>
+                        </div>
 
-                            <div id="air-quality-modal" class="air-quality-modal" role="dialog" aria-modal="true" aria-labelledby="aq-modal-title" tabindex="-1" hidden>
+                        <!-- Air Quality Modal -->
+                        <div id="air-quality-modal" class="air-quality-modal" role="dialog" aria-modal="true" aria-labelledby="aq-modal-title" tabindex="-1" hidden>
+                            <div class="aq-modal-dialog">
                                 <header class="aq-modal-header">
                                     <div class="aq-modal-header-inner">
                                         <div class="aq-modal-heading">
@@ -713,17 +749,11 @@
                                     </main>
                                 </div>
                             </div>
-                            <article class="insight-tile insight-tile-action" id="wind-gust-tile" style="cursor:pointer;">
-                                <span class="insight-icon" aria-hidden="true">〰</span>
-                                <div class="insight-copy">
-                                    <span class="insight-label">Wind gusts</span>
-                                    <strong class="insight-value" id="wind-gust">-- km/h</strong>
-                                    <span class="insight-note" id="wind-gust-state">Checking</span>
-                                </div>
-                            </article>
+                        </div>
 
-                            <!-- Wind Flow Map Modal -->
-                            <div id="wind-map-modal" class="wind-map-modal" hidden>
+                        <!-- Wind Flow Map Modal -->
+                        <div id="wind-map-modal" class="wind-map-modal" hidden>
+                            <div class="wind-map-dialog">
                                 <div class="wind-map-header">
                                     <div class="wind-map-title">
                                         <h2>Wind Flow</h2>
@@ -732,67 +762,19 @@
                                     <button class="wind-map-close" id="wind-map-close" aria-label="Close wind map">✕</button>
                                 </div>
                                 <div class="wind-map-body">
-                                    <div id="wind-tiles" class="wind-tiles" aria-hidden="true"></div>
-                                    <div id="wind-radar" class="wind-radar" aria-hidden="true" hidden></div>
-                                    <canvas id="wind-canvas"></canvas>
-                                    <div class="wind-map-scale">
-                                        <span class="wind-scale-title" id="wind-scale-title">Wind (km/h)</span>
-                                        <div class="wind-scale-row">
-                                            <div class="wind-scale-bar" id="wind-scale-bar"></div>
-                                            <div class="wind-scale-labels" id="wind-scale-labels"><span>75</span><span>50</span><span>25</span><span>0</span></div>
-                                        </div>
-                                    </div>
-                                    <div class="wind-loc-badge" id="wind-loc-badge" aria-hidden="true">
-                                        <span class="wind-badge-dir" id="wind-badge-dir">--</span>
-                                        <strong id="wind-badge-speed">--</strong>
-                                        <span class="wind-badge-unit" id="wind-badge-unit">km/h</span>
-                                    </div>
+                                    <iframe id="windy-iframe" class="windy-iframe" title="Windy weather map" src="" frameborder="0" allowfullscreen></iframe>
                                     <div class="wind-layers">
                                         <button class="wind-layers-btn" id="wind-layers-btn" aria-label="Map layers">
-                                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h13M1.5 8h13M1.5 12.5h13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
                                         </button>
                                         <div class="wind-layers-menu" id="wind-layers-menu" hidden>
-                                            <button data-layer="wind" class="active">Wind</button>
-                                            <button data-layer="precip">Precipitation</button>
+                                            <button data-layer="wind" class="active">Wind Flow</button>
+                                            <button data-layer="precip">Rain & Thunder</button>
                                             <button data-layer="temp">Temperature</button>
-                                            <button data-layer="aqi">Air quality</button>
                                         </div>
                                     </div>
-                                    <div class="wind-zoom-ctrl">
-                                        <button id="wind-locate" aria-label="Go to my location">
-                                            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 1.5 L1.5 6.9 L7 9 L9.1 14.5 Z" fill="currentColor"/></svg>
-                                        </button>
-                                        <button id="wind-zoom-in" aria-label="Zoom in">+</button>
-                                        <button id="wind-zoom-out" aria-label="Zoom out">−</button>
-                                    </div>
-                                    <span class="wind-attrib">© OpenStreetMap © CARTO · Radar © RainViewer</span>
                                 </div>
                             </div>
-                            <article class="insight-tile">
-                                <span class="insight-icon" aria-hidden="true">☁</span>
-                                <div class="insight-copy">
-                                    <span class="insight-label">Cloud cover</span>
-                                    <strong class="insight-value" id="cloud-cover">--%</strong>
-                                    <span class="insight-note">Sky covered</span>
-                                </div>
-                            </article>
-                            <article class="insight-tile insight-tile-action" id="dew-point-tile" role="button" tabindex="0" aria-label="Open dew point details" aria-haspopup="dialog" aria-controls="dew-point-modal">
-                                <span class="insight-icon" aria-hidden="true">◌</span>
-                                <div class="insight-copy">
-                                    <span class="insight-label">Dew point</span>
-                                    <strong class="insight-value" id="dew-point">--°</strong>
-                                    <span class="insight-note">Moisture comfort</span>
-                                </div>
-                            </article>
-                            <button class="insight-tile sunshine-tile" id="sunshine-tile" type="button" aria-haspopup="dialog" aria-controls="sun-modal">
-                                <span class="insight-icon insight-icon-sun" aria-hidden="true">☀</span>
-                                <div class="insight-copy">
-                                    <span class="insight-label">Sunshine</span>
-                                    <strong class="insight-value" id="sunshine-duration">-- hr</strong>
-                                    <span class="insight-note">View daylight details</span>
-                                </div>
-                                <span class="sunshine-chevron" aria-hidden="true">›</span>
-                            </button>
                         </div>
                     </section>
 
@@ -863,67 +845,69 @@
     </div>
 
     <div class="air-quality-modal dew-point-modal" id="dew-point-modal" role="dialog" aria-modal="true" aria-labelledby="dew-modal-title" tabindex="-1" hidden>
-        <header class="aq-modal-header">
-            <div class="aq-modal-header-inner">
-                <div class="aq-modal-heading">
-                    <h2 id="dew-modal-title">Dew Point</h2>
-                    <p class="aq-modal-kicker" id="dew-modal-location">Current conditions</p>
+        <div class="aq-modal-dialog">
+            <header class="aq-modal-header">
+                <div class="aq-modal-header-inner">
+                    <div class="aq-modal-heading">
+                        <h2 id="dew-modal-title">Dew Point</h2>
+                        <p class="aq-modal-kicker" id="dew-modal-location">Current conditions</p>
+                    </div>
+                    <button class="aq-modal-close" id="dew-modal-close" type="button" aria-label="Close dew point details">✕</button>
                 </div>
-                <button class="aq-modal-close" id="dew-modal-close" type="button" aria-label="Close dew point details">✕</button>
-            </div>
-        </header>
+            </header>
 
-        <div class="aq-modal-scroll">
-            <main class="aq-modal-content dew-modal-content">
-                <section class="dew-hero">
-                    <div class="dew-hero-reading">
-                        <span class="dew-drop" aria-hidden="true">◌</span>
-                        <strong id="dew-detail-current">--°</strong>
-                    </div>
-                    <div class="dew-hero-copy">
-                        <p class="aq-section-kicker" id="dew-detail-date">Today</p>
-                        <h3 id="dew-detail-comfort">Checking moisture comfort</h3>
-                        <p id="dew-detail-summary">Loading dew-point and humidity details.</p>
-                    </div>
-                </section>
-
-                <section class="dew-detail-card" aria-labelledby="dew-hourly-title">
-                    <div class="aq-card-heading">
-                        <div>
-                            <p class="aq-section-kicker">Next 24 hours</p>
-                            <h3 id="dew-hourly-title">Dew-point trend</h3>
+            <div class="aq-modal-scroll">
+                <main class="aq-modal-content dew-modal-content">
+                    <section class="dew-hero">
+                        <div class="dew-hero-reading">
+                            <span class="dew-drop" aria-hidden="true">◌</span>
+                            <strong id="dew-detail-current">--°</strong>
                         </div>
-                        <span class="dew-humidity-pill" id="dew-current-humidity">Humidity --%</span>
+                        <div class="dew-hero-copy">
+                            <p class="aq-section-kicker" id="dew-detail-date">Today</p>
+                            <h3 id="dew-detail-comfort">Checking moisture comfort</h3>
+                            <p id="dew-detail-summary">Loading dew-point and humidity details.</p>
+                        </div>
+                    </section>
+
+                    <section class="dew-detail-card" aria-labelledby="dew-hourly-title">
+                        <div class="aq-card-heading">
+                            <div>
+                                <p class="aq-section-kicker">Next 24 hours</p>
+                                <h3 id="dew-hourly-title">Dew-point trend</h3>
+                            </div>
+                            <span class="dew-humidity-pill" id="dew-current-humidity">Humidity --%</span>
+                        </div>
+                        <div class="dew-hourly" id="dew-hourly" role="list" aria-label="Hourly dew-point forecast"></div>
+                    </section>
+
+                    <section class="dew-detail-card" aria-labelledby="dew-summary-title">
+                        <p class="aq-section-kicker">Daily summary</p>
+                        <h3 id="dew-summary-title">Moisture today</h3>
+                        <p class="dew-card-copy" id="dew-daily-summary">Loading the daily dew-point range.</p>
+                    </section>
+
+                    <section class="dew-detail-card" aria-labelledby="dew-comparison-title">
+                        <p class="aq-section-kicker">Daily comparison</p>
+                        <h3 id="dew-comparison-title">Average dew point</h3>
+                        <p class="dew-card-copy" id="dew-comparison-copy">Comparing nearby forecast days.</p>
+                        <div class="dew-comparison" id="dew-comparison"></div>
+                    </section>
+
+                    <div class="dew-info-grid">
+                        <section class="dew-detail-card" aria-labelledby="about-humidity-title">
+                            <p class="aq-section-kicker">About the measurement</p>
+                            <h3 id="about-humidity-title">Relative humidity</h3>
+                            <p class="dew-card-copy">Relative humidity is the amount of moisture in the air compared with how much the air can hold at its current temperature. Near 100%, dew or fog may form.</p>
+                        </section>
+                        <section class="dew-detail-card" aria-labelledby="about-dew-title">
+                            <p class="aq-section-kicker">About the measurement</p>
+                            <h3 id="about-dew-title">Dew point</h3>
+                            <p class="dew-card-copy">Dew point is the temperature the air must cool to before moisture condenses. A higher dew point feels more humid. It is not precipitation, though moist air can help rain develop.</p>
+                        </section>
                     </div>
-                    <div class="dew-hourly" id="dew-hourly" role="list" aria-label="Hourly dew-point forecast"></div>
-                </section>
-
-                <section class="dew-detail-card" aria-labelledby="dew-summary-title">
-                    <p class="aq-section-kicker">Daily summary</p>
-                    <h3 id="dew-summary-title">Moisture today</h3>
-                    <p class="dew-card-copy" id="dew-daily-summary">Loading the daily dew-point range.</p>
-                </section>
-
-                <section class="dew-detail-card" aria-labelledby="dew-comparison-title">
-                    <p class="aq-section-kicker">Daily comparison</p>
-                    <h3 id="dew-comparison-title">Average dew point</h3>
-                    <p class="dew-card-copy" id="dew-comparison-copy">Comparing nearby forecast days.</p>
-                    <div class="dew-comparison" id="dew-comparison"></div>
-                </section>
-
-                <div class="dew-info-grid">
-                    <section class="dew-detail-card" aria-labelledby="about-humidity-title">
-                        <p class="aq-section-kicker">About the measurement</p>
-                        <h3 id="about-humidity-title">Relative humidity</h3>
-                        <p class="dew-card-copy">Relative humidity is the amount of moisture in the air compared with how much the air can hold at its current temperature. Near 100%, dew or fog may form.</p>
-                    </section>
-                    <section class="dew-detail-card" aria-labelledby="about-dew-title">
-                        <p class="aq-section-kicker">About the measurement</p>
-                        <h3 id="about-dew-title">Dew point</h3>
-                        <p class="dew-card-copy">Dew point is the temperature the air must cool to before moisture condenses. A higher dew point feels more humid. It is not precipitation, though moist air can help rain develop.</p>
-                    </section>
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     </div>
 
