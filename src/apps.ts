@@ -19,6 +19,6 @@ export const apps: BagelApp[] = [
     name: 'Weather Deck',
     icon: '🌤️',
     description: 'Local weather station',
-    url: '/apps/weather/index.html'
+    url: '/apps/weather/'
   }
 ];

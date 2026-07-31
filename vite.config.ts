@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
+import { relative, resolve, dirname } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
 const appsDirectory = resolve(import.meta.dirname, 'apps');
@@ -13,6 +13,19 @@ const appEntries: Record<string, string> = Object.fromEntries(
     ])
     .filter(([, entryFile]) => existsSync(entryFile))
 );
+
+function htmlPartials(): Plugin {
+  return {
+    name: 'html-partials',
+    transformIndexHtml(html, ctx) {
+      return html.replace(/<!--#include file="(.*?)" -->/g, (match, src) => {
+        const filePath = resolve(dirname(ctx.filename), src);
+        if (existsSync(filePath)) return readFileSync(filePath, 'utf-8');
+        return match;
+      });
+    }
+  };
+}
 
 function bagelServiceWorker(): Plugin {
   return {
@@ -135,7 +148,7 @@ self.addEventListener('fetch', (event) => {
 }
 
 export default defineConfig({
-  plugins: [bagelServiceWorker()],
+  plugins: [htmlPartials(), bagelServiceWorker()],
   build: {
     rollupOptions: {
       input: {

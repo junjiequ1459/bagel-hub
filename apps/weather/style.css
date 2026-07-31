@@ -104,6 +104,22 @@ a { touch-action: manipulation; }
     overflow: hidden;
 }
 
+.skyline-overlay {
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+    color: var(--skyline-fill);
+    top: calc(max(0.9rem, env(safe-area-inset-top)) + 190px);
+    right: 0.9rem;
+    width: clamp(180px, 42vw, 260px);
+}
+
+.skyline-overlay svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
 .scene {
     width: 100%;
     height: 100%;
@@ -323,22 +339,6 @@ a { touch-action: manipulation; }
     display: contents;
 }
 
-#content-weather[hidden],
-#content-details[hidden] {
-    display: none !important;
-}
-
-body.detail-mode .current-card {
-    display: none !important;
-}
-
-body.detail-mode .scene-spacer {
-    height: clamp(140px, 15vh, 200px) !important;
-}
-
-body.detail-mode .sheet {
-    padding-top: 2rem !important;
-}
 
 .hub-chip {
     width: 42px;
@@ -360,6 +360,7 @@ body.detail-mode .sheet {
 
 .city-name {
     padding: 0.55rem 0.85rem;
+    cursor: pointer;
     border-radius: 12px;
     background: var(--header-surface);
     color: #fff;
@@ -395,7 +396,7 @@ body.detail-mode .sheet {
 .date-chip {
     position: fixed;
     top: calc(max(0.9rem, env(safe-area-inset-top)) + 64px);
-    right: 0;
+    right: 0.9rem;
     z-index: 15;
     display: grid;
     grid-template-columns: auto auto auto;
@@ -407,7 +408,7 @@ body.detail-mode .sheet {
     font-family: var(--font-system);
     text-align: left;
     padding: 0.55rem 1rem 0.55rem 0.9rem;
-    border-radius: 10px 0 0 10px;
+    border-radius: 10px;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     cursor: pointer;
@@ -2647,10 +2648,16 @@ body.loading .chart-dot {
 body.loading #view-main .main-scroll { pointer-events: none; }
 .main-scroll { transition: opacity 0.3s ease; }
 
-body.detail-mode { background: var(--page-bg); }
+
 
 /* Compact phones */
 @media (max-width: 479px) {
+    .skyline-overlay {
+        top: calc(max(0.75rem, env(safe-area-inset-top)) + 180px);
+        right: 0.9rem;
+        width: clamp(170px, 48vw, 220px);
+    }
+
     .main-top {
         gap: 0.4rem;
         padding-inline: 0.65rem;
@@ -2665,6 +2672,8 @@ body.detail-mode { background: var(--page-bg); }
         top: calc(max(0.75rem, env(safe-area-inset-top)) + 58px);
         gap: 0.5rem;
         padding: 0.45rem 0.65rem;
+        right: 0.9rem;
+        border-radius: 10px;
     }
 
     .date-menu {
@@ -2946,6 +2955,12 @@ body.detail-mode { background: var(--page-bg); }
 
     .date-menu {
         right: max(1.5rem, calc((100vw - 1180px) / 2 + 1.5rem));
+    }
+
+    .skyline-overlay {
+        top: calc(max(0.9rem, env(safe-area-inset-top)) + 190px);
+        right: max(1.5rem, calc((100vw - 1180px) / 2 + 1.5rem));
+        width: clamp(260px, 22vw, 340px);
     }
 
     .scene-spacer {
